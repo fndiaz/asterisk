@@ -1,0 +1,614 @@
+macro MACRO-seleciona_ramalvirtual(channel){
+	Set(dev=${CUT(channel,-,1)});
+	Set(dev=${CUT(dev,/,2)});
+	Set(HASH(DB_RAMALVIRTUAL)=${ODBC_CHECA_RAMALVIRTUAL(${dev})});
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CUT(CHANNEL,-,1)},${numero_destino},Context:${CONTEXT});
+	return;
+};
+
+macro MACRO-seleciona_ramalfisico(ramalvirtual){
+	Set(HASH(DB_RAMALFISICO)=${ODBC_CHECA_RAMALFISICO(${ramalvirtual})});
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CUT(CHANNEL,-,1)},${numero_destino},Context:${CONTEXT});
+	return;
+};
+
+macro MACRO-prompt(prompt){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | [audio=${prompt}]);
+	Answer();
+	Playback(/aldeia/etc/asterisk/audio/prompt-${prompt});
+	Progress();
+	Playtones(congestion);
+	Wait(10);
+	StopPlaytones();
+	Hangup();
+	return;
+//1 - Ramal invalido
+//2 - Senha incorreta
+//3 - Programação invalida
+//4 - Programação habilitada com sucesso
+//5 - Programação desabilitada com sucesso
+//6 - Senha
+//7 - Entre com a senha atual da sua caixa postal
+//8 - Entre com a nova senha
+//9 - Permissao invalida
+//10 - Cadeado ativado
+//11 - Creditos insulficientes
+//12 - Telefone ocupado, tecle um para ativar a rechamada
+//13 - Rechamada ativada
+};
+
+macro MACRO-blacklist_ramal(){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checar Blacklist ramal);
+	Set(HASH(DB)=${ODBC_LISTAS(${numero_destino},Blacklist)});
+	if ( ${ODBCROWS} > 0 ){
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Encontrou o numero na Blacklist | [numero=${numero_destino}]);
+		if ( "${HASH(DB,objeto)}" = "${HASH(DB_RAMALVIRTUAL,ramal_virtual)}" || "${HASH(DB,objeto)}" = "${HASH(DB_RAMALVIRTUAL,departamento)}" || "${HASH(DB,categoria)}" = "Global" ){
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Entrou na Blacklist);
+			&MACRO-prompt(9);
+		};
+	};
+	return;
+};
+
+macro MACRO-whitelist_ramal(){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checar Whitelist ramal);
+	Set(HASH(DB)=${ODBC_LISTAS(${numero_destino},Whitelist)});
+	if ( ${ODBCROWS} = 0 ){
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Chamada bloqueada);
+		&MACRO-prompt(9);
+	}else{
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Encontrou o numero na Whitelist, verificando atributos do ramal | [numero=${numero_destino}]);
+		if ( "${HASH(DB,objeto)}" != "${HASH(DB_RAMALVIRTUAL,ramal_virtual)}" && "${HASH(DB,objeto)}" != "${HASH(DB_RAMALVIRTUAL,departamento)}" && "${HASH(DB,categoria)}" != "Global" ){
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Chamada bloqueada);
+			&MACRO-prompt(9);
+		};
+	};
+	return;
+};
+
+macro MACRO-blacklist_usuario(){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checar Blacklist usuario);
+	Set(HASH(DB)=${ODBC_LISTAS(${numero_destino},Blacklist)});
+	if ( ${ODBCROWS} > 0 ){
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Encontrou o numero na Blacklist | [numero=${numero_destino}]);
+		if ( "${HASH(DB,objeto)}" = "${HASH(DB_PERMISSAOORIGEM,departamento)}" || "${HASH(DB,categoria)}" = "Global" ){
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Entrou na Blacklist);
+			&MACRO-prompt(9);
+		};
+	};
+	return;
+};
+
+macro MACRO-whitelist_usuario(){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${numero_destino},Context:${CONTEXT} | Checar Whitelist usuario);
+	Set(HASH(DB)=${ODBC_LISTAS(${numero_destino},Whitelist)});
+	if ( ${ODBCROWS} = 0 ){
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Chamada bloqueada);
+		&MACRO-prompt(9);
+	}else{
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Encontrou o numero na Whitelist, verificando atributos do ramal | [numero=${numero_destino}]);
+		if ( "${HASH(DB,objeto)}" != "${HASH(DB_PERMISSAOORIGEM,departamento)}" && "${HASH(DB,categoria)}" != "Global" ){
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Chamada bloqueada);
+			&MACRO-prompt(9);
+		};
+	};
+	return;
+};
+
+macro MACRO-blacklist_entrada(){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checar Blacklist ramal);
+	Set(HASH(DB)=${ODBC_LISTAS(${numero_origem},Blacklist)});
+	if ( ${ODBCROWS} > 0 ){
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Encontrou o numero na Blacklist | [numero=${numero_destino}]);
+		if ( "${HASH(DB,objeto)}" = "" && "${HASH(DB,categoria)}" = "Entrante" ){
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Entrou na Blacklist);
+			&MACRO-prompt(9);
+		};
+	};
+	return;
+};
+
+macro MACRO-gravacao(){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
+	Set(data=${STRFTIME(${EPOCH},,"%Y%m%d")});
+	Set(AUDIOHOOK_INHERIT(MixMonitor)=no);
+	Set(__arquivo_gravacao=${CDR(linkedid)}-${STRFTIME(${EPOCH},,%H%M%S)}-${numero_origem}-${numero_destino});
+	MixMonitor(${data}/${arquivo_gravacao}.WAV,b);
+	Set(__gravacao=1);
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | ${data}/${UNIQUEID}-${STRFTIME(${EPOCH},,%H%M%S)}-${numero_origem}-${numero_destino}.WAV);
+	return;
+};
+
+macro MACRO-chefesecretaria(){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
+	if ( ${id_destino} = 0 ){
+		Set(sentido=interna);
+	}else{
+		Set(sentido=externa);
+	};
+	if ( ${HASH(DB_PERMISSAOAPLICACAODESTINO,cs_chamada${sentido})} = 1 ){
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | [sentido=${sentido}]);
+		Set(HASH(DB)=${ODBC_CHEFESECRETARIA(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})});
+		if ( ${ODBCROWS} = 0 ){
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} |  Numero de destino alterado para ${HASH(DB_PERMISSAOAPLICACAODESTINO,cs_numero)});
+			goto permissao_ramaldestino|${HASH(DB_PERMISSAOAPLICACAODESTINO,cs_numero)}|1;
+			Verbose(CS);
+		};
+	};
+	return;
+};
+
+macro MACRO-consulta_portabilidade(){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Portabilidade habilitada);
+	Set(HASH(DB)=${ODBC_PORTABILIDADE_BLACKLIST(${numero_destino})});
+	if ( ${ODBCROWS} > 0 ){
+		Set(operadora=${HASH(DB,operadora)});
+		Set(ODBC_PORTABILIDADE_INSERT(${STRFTIME(${EPOCH},,%F %T)},${numero_destino},${operadora},${CDR(linkedid)},0)=insert);
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | [operadora=${operadora}] | Numero na Blacklist);
+	}else{
+		Set(data=${STRFTIME(${MATH(${STRFTIME(${EPOCH},,%s)}-${MATH(${HASH(PORTABILIDADE,tempo_timeout)}*86400,int)},int)},,%F %T)});
+		Set(HASH(DB)=${ODBC_PORTABILIDADE_CONSULTA(${numero_destino},${data})});
+		Set(ddd_padrao=);
+//		if ( "${HASH(DB_PERMISSAODESTINO,tipo_chamada)}" = "LOCAL_CELULAR" ){
+		if ( ${LEN(${numero_destino})} <= 10 ){
+			Set(ddd_padrao=${HASH(PORTABILIDADE,ddd_padrao)});
+		};
+		if ( ${ODBCROWS} > 0 ){
+			Set(operadora=${HASH(DB,operadora)}${ddd_padrao});
+			Set(ODBC_PORTABILIDADE_INSERT(${STRFTIME(${EPOCH},,%F %T)},${numero_destino},${operadora},${CDR(linkedid)},0)=insert);
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | [operadora=${operadora}] | Consulta local);
+		}else{
+			Noop(${ddd_padrao}${numero_destino:1});
+			Set(CURLOPT(userpwd)=${HASH(PORTABILIDADE,usuario)}:${HASH(PORTABILIDADE,senha)});
+			Set(operadora=${CURL(${HASH(PORTABILIDADE,endereco)}/?num=${ddd_padrao}${numero_destino:1})});
+			Set(ODBC_PORTABILIDADE_INSERT(${STRFTIME(${EPOCH},,%F %T)},${numero_destino},${operadora},${CDR(linked_id)},1)=insert);
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | [operadora=${operadora}] | Consulta externa);
+			Set(operadora=${operadora}${ddd_padrao});
+		};
+	};
+	return;
+};
+
+macro MACRO-credito(responsavel,tipo_origem,tipo_chamada){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
+	NoOp( '------------------------------------------------------------------------------------------------------------');
+	NoOp( ${STRFTIME(${EPOCH},GMT${HASH(DB_PARAMETROS,fuso_horario)},%d)} > ${HASH(DB_PARAMETROS,credito_dia)}  );
+	if ( ${STRFTIME(${EPOCH},GMT${HASH(DB_PARAMETROS,fuso_horario)},%d)} > ${HASH(DB_PARAMETROS,credito_dia)} ){
+		Set(data=${STRFTIME(${EPOCH},GMT${HASH(DB_PARAMETROS,fuso_horario)},%G-%m)}-${HASH(DB_PARAMETROS,credito_dia)});
+	}else{
+		Set(data=${STRFTIME(${MATH(${STRFTIME(${EPOCH},GMT${HASH(DB_PARAMETROS,fuso_horario)},%s)}-${MATH(30*86400,int)},int)},GMT${HASH(DB_PARAMETROS,fuso_horario)},%G-%m)}-${HASH(DB_PARAMETROS,credito_dia)});
+	};
+	Set(HASH(DB1)=${ODBC_CREDITO(${responsavel},${tipo_origem},C,${data},${tipo_chamada})});
+	Set(HASH(DB1)=99999);
+	Set(HASH(DB2)=${ODBC_CREDITO(${responsavel},${tipo_origem},D,${data},${tipo_chamada})});
+	NoOp(${ODBC_CREDITO(${responsavel},${tipo_origem},C,${data},${tipo_chamada})});
+	if ( ${HASH(DB1,total)} <= ${HASH(DB2,total)} ){
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Creditos insulficientes);
+		&MACRO-prompt(11);
+	};
+	return;
+};
+
+macro MACRO-dialstatus_ramal(status){
+	if ( "${BLINDTRANSFER}" != "" || "${TRANSFERERNAME}" != "" || "${CUT(CHANNEL,/,1)}" = "Local" || "${CUT(CHANNEL,/,1)}" = "Transfered"){
+		if ( "${CUT(CHANNEL,/,1)}" = "Transfered" || "${CUT(CHANNEL,/,1)}" = "Local" ){
+			&MACRO-seleciona_ramalvirtual(${BRIDGEPEER});
+			//System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${controle},${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${TOUPPER(${status})}" >> /tmp/bilhete.txt);
+		};
+	}else{
+		&MACRO-seleciona_ramalvirtual(${CHANNEL});
+		//System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${MASTER_CHANNEL(controle)},${MASTER_CHANNEL(numero_origem)},${MASTER_CHANNEL(numero_discado)},${TOUPPER(${status})}" >> /tmp/bilhete.txt);
+	};
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
+	switch("${TOUPPER(${status})}"){
+		case "BUSY":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Destino ocupado);
+			Set(HASH(DB_DESVIOS)=${ODBC_DESVIOS(${numero_destino},OCUPADO,${STRFTIME(${EPOCH},,%a)},${STRFTIME(${EPOCH},,%R)})});
+			if ( ${ODBCROWS} > 0 ){
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Desviando chamada para ${HASH(DB_DESVIOS,numero)});
+				goto interligacao|${HASH(DB_DESVIOS,numero)}|frompstn;
+			};
+			if ( "${BLINDTRANSFER}" != "" ){
+				Set(ODBC_BILHETE_CHAMADA(${id_tronco},${numero_origem},${numero_destino},${CDR(linkedid)},${CDR(start)},${CDR(billsec)},BUSY,0,${id_empresa},${id_destino},${HASH(DB_PERMISSAODESTINO,gravacao)},${MASTER_CHANNEL(ATENDIDO)},${nome_origem},${departamento_origem},${id_transbordo},${arquivo_gravacao})=insert);
+				&MACRO-transferencia();
+			}else{
+				if ( ${id_destino} = 0 ){
+					if ( ${HASH(DB_PARAMETROS,rechamada)} = 1 ){
+						&MACRO-rechamada();
+					};
+				};
+			};
+			Set(ODBC_BILHETE_CHAMADA(${id_tronco},${numero_origem},${numero_destino},${CDR(linkedid)},${CDR(start)},${CDR(billsec)},BUSY,0,${id_empresa},${id_destino},${HASH(DB_PERMISSAODESTINO,gravacao)},${MASTER_CHANNEL(ATENDIDO)},${nome_origem},${departamento_origem},${id_transbordo},${arquivo_gravacao})=insert);
+			Set(dial_status=BUSY);
+			Set(status=busy);
+		break;
+		case "NOANSWER":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Destino não atendeu);
+			Set(HASH(DB_DESVIOS)=${ODBC_DESVIOS(${numero_destino},NAOATENDIMENTO,${STRFTIME(${EPOCH},,%a)},${STRFTIME(${EPOCH},,%R)})});
+			if ( ${ODBCROWS} > 0 ){
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Desviando chamada para ${HASH(DB_DESVIOS,numero)});
+				goto interligacao|${HASH(DB_DESVIOS,numero)}|frompstn;
+			};
+			if ( "${BLINDTRANSFER}" != "" ){
+				Set(ODBC_BILHETE_CHAMADA(${id_tronco},${numero_origem},${numero_destino},${CDR(linkedid)},${CDR(start)},${CDR(billsec)},NOANSWER,0,${id_empresa},${id_destino},${HASH(DB_PERMISSAODESTINO,gravacao)},${ATENDIDO},${nome_origem},${departamento_origem},${id_transbordo},${arquivo_gravacao})=insert);
+				&MACRO-transferencia();
+			};
+			Set(dial_status=NOANSWER);
+			Set(status=busy);
+		break;
+		case "CONGESTION":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Destino indisponivel - CONGESTION);
+			Set(HASH(DB_DESVIOS)=${ODBC_DESVIOS(${numero_destino},INDISPONIVEL,${STRFTIME(${EPOCH},,%a)},${STRFTIME(${EPOCH},,%R)})});
+			if ( ${ODBCROWS} > 0 ){
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Desviando chamada para ${HASH(DB_DESVIOS,numero)});
+				goto interligacao|${HASH(DB_DESVIOS,numero)}|frompstn;
+			};
+			Set(dial_status=CONGESTION);
+			Set(status=congestion);
+		break;
+		case "CHANUNAVAIL":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Destino indisponivel - CHANUNAVAIL);
+			Set(HASH(DB_DESVIOS)=${ODBC_DESVIOS(${numero_destino},INDISPONIVEL,${STRFTIME(${EPOCH},,%a)},${STRFTIME(${EPOCH},,%R)})});
+			if ( ${ODBCROWS} > 0 ){
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Desviando chamada para ${HASH(DB_DESVIOS,numero)});
+				goto interligacao|${HASH(DB_DESVIOS,numero)}|frompstn;
+			};
+			Set(dial_status=CHANUNAVAIL);
+			Set(status=congestion);
+		break;
+		default:
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Destino com status desconhecido | [DIALSTATUS=${DIALSTATUS}]);
+			Set(dial_status=${DIALSTATUS});
+			Set(status=info);
+	};
+	if ( ${HASH(DB_PERMISSAOAPLICACAODESTINO,voicemail_ativo)} = 1 ){
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Entrando no Voicemail | [ramal=${numero_destino}]);
+		Voicemail(${numero_destino});
+		Hangup();
+	};
+	Set(espera=10);
+	if ( "${TRANSFERERNAME}" != "" ){
+		Set(espera=2);
+	};
+	Progress();
+	Playtones(${status});
+	Wait(${espera});
+	StopPlaytones();
+	Hangup();
+	return;
+};
+
+macro MACRO-dialstatus_sainte(status){
+	if ( "${BLINDTRANSFER}" != "" || "${TRANSFERERNAME}" != "" || "${CUT(CHANNEL,/,1)}" = "Local" || "${CUT(CHANNEL,/,1)}" = "Transfered"){
+		if ( "${CUT(CHANNEL,/,1)}" = "Transfered" || "${CUT(CHANNEL,/,1)}" = "Local" ){
+			&MACRO-seleciona_ramalvirtual(${BRIDGEPEER});
+			System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${controle},${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${TOUPPER(${status})}" >> /tmp/bilhete.txt);
+		};
+	}else{
+		&MACRO-seleciona_ramalvirtual(${CHANNEL});
+		System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${MASTER_CHANNEL(controle)},${MASTER_CHANNEL(numero_origem)},${MASTER_CHANNEL(numero_discado)},${TOUPPER(${status})}" >> /tmp/bilhete.txt);
+	};
+
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
+	switch("${TOUPPER(${status})}"){
+		case "CHANUNAVAIL":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Tronco indisponivel | [DIALSTATUS=${DIALSTATUS}]);
+			Set(dial_status=CHANUNAVAIL);
+			Set(status=congestion);
+		break;
+		case "CONGESTION":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Tronco indisponivel | [DIALSTATUS=${status}]);
+			Set(dial_status=CONGESTION);
+			Set(status=congestion);
+		break;
+		case "BUSY":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Tronco indisponivel | [DIALSTATUS=${DIALSTATUS}]);
+			if ( ${HASH(DB_PERMISSAODESTINO,tarifado)} = 0 && ${HASH(DB_PARAMETROS,rechamada)} = 1 ){
+				&MACRO-rechamada();
+			};
+			Set(dial_status=BUSY);
+			Set(status=busy);
+		break;
+		default:
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Tronco com status desconhecido | [DIALSTATUS=${DIALSTATUS}]);
+			Set(dial_status=${DIALSTATUS});
+			Set(status=busy);
+	};
+	Progress();
+	Playtones(${status});
+	Wait(10);
+	StopPlaytones();
+	Hangup();
+	return;
+};
+
+macro MACRO-queuestatus(status){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
+	switch("${TOUPPER(${status})}"){
+		case "CONTINUE":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Chamada finalizada);
+			Set(dial_status=CONTINUE);
+			Set(status=busy);
+		break;
+		case "TIMEOUT":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Tempo esgotado);
+			Set(HASH(DB_DESVIOS)=${ODBC_DESVIOS(${numero_destino},NAOATENDIMENTO,${STRFTIME(${EPOCH},,%a)},${STRFTIME(${EPOCH},,%R)})});
+			if ( ${ODBCROWS} > 0 ){
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Desviando chamada para ${HASH(DB_DESVIOS,numero)});
+				goto interligacao|${HASH(DB_DESVIOS,numero)}|frompstn;
+			};
+			Set(dial_status=TIMEOUT);
+			Set(status=busy);
+		break;
+		case "FULL":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Fila cheia);
+			Set(HASH(DB_DESVIOS)=${ODBC_DESVIOS(${numero_destino},OCUPADO,${STRFTIME(${EPOCH},,%a)},${STRFTIME(${EPOCH},,%R)})});
+			if ( ${ODBCROWS} > 0 ){
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Desviando chamada para ${HASH(DB_DESVIOS,numero)});
+				goto interligacao|${HASH(DB_DESVIOS,numero)}|frompstn;
+			};
+			Set(dial_status=FULL);
+			Set(status=busy);
+		break;
+		case "LEAVEEMPTY":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Abandonou a fila);
+			Set(HASH(DB_DESVIOS)=${ODBC_DESVIOS(${numero_destino},NAOATENDIMENTO,${STRFTIME(${EPOCH},,%a)},${STRFTIME(${EPOCH},,%R)})});
+			if ( ${ODBCROWS} > 0 ){
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Desviando chamada para ${HASH(DB_DESVIOS,numero)});
+				goto interligacao|${HASH(DB_DESVIOS,numero)}|frompstn;
+			};
+			Set(dial_status=LEAVEEMPTY);
+			Set(status=busy);
+		break;
+		case "JOINEMPTY":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Abandonou a fila);
+			Set(HASH(DB_DESVIOS)=${ODBC_DESVIOS(${numero_destino},NAOATENDIMENTO,${STRFTIME(${EPOCH},,%a)},${STRFTIME(${EPOCH},,%R)})});
+			if ( ${ODBCROWS} > 0 ){
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Desviando chamada para ${HASH(DB_DESVIOS,numero)});
+				goto interligacao|${HASH(DB_DESVIOS,numero)}|frompstn;
+			};
+			Set(dial_status=JOINEMPTY);
+			Set(status=busy);
+		break;
+		case "LEAVEUNAVAIL":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Abandonou a fila);
+			Set(HASH(DB_DESVIOS)=${ODBC_DESVIOS(${numero_destino},INDISPONIVEL,${STRFTIME(${EPOCH},,%a)},${STRFTIME(${EPOCH},,%R)})});
+			if ( ${ODBCROWS} > 0 ){
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Desviando chamada para ${HASH(DB_DESVIOS,numero)});
+				goto interligacao|${HASH(DB_DESVIOS,numero)}|frompstn;
+			};
+			Set(dial_status=LEAVEUNAVAIL);
+			Set(status=congestion);
+		break;
+		case "JOINUNAVAIL":
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Abandonou a fila);
+			Set(HASH(DB_DESVIOS)=${ODBC_DESVIOS(${numero_destino},INDISPONIVEL,${STRFTIME(${EPOCH},,%a)},${STRFTIME(${EPOCH},,%R)})});
+			if ( ${ODBCROWS} > 0 ){
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Desviando chamada para ${HASH(DB_DESVIOS,numero)});
+				goto interligacao|${HASH(DB_DESVIOS,numero)}|frompstn;
+			};
+			Set(dial_status=JOINUNAVAIL);
+			Set(status=congestion);
+		break;
+		default:
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Fila com status desconhecido | [QUEUESTATUS=${QUEUESTATUS}]);
+			Set(dial_status=${QUEUESTATUS});
+			Set(status=info);
+	};
+	Progress();
+	Playtones(${status});
+	Wait(10);
+	StopPlaytones();
+	Hangup();
+	return;
+};
+
+macro MACRO-disca(dispositivo){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
+	switch(${dispositivo}){
+		case QUEUE:
+			Set(QUEUESTATUS=ABANDON);
+			Set(HASH(DB)=${ODBC_DISCA(queue,name,${HASH(DB_RAMALFISICO,ramal_fisico)})});
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Entrando na fila | Queue(${HASH(DB,name)},Ttc${HASH(DB,atributo)},,,,,atendeu));
+			Answer();
+			Set(dial_string=Queue(${HASH(DB,name)},TtcC${HASH(DB,atributo)},,,,,atendeu));
+		break;
+		case MEETME:
+			Set(HASH(DB)=${ODBC_DISCA(meetme,confno,${HASH(DB_RAMALFISICO,ramal_fisico)})});
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Entrando na sala de conferencia | Meetme(${HASH(DB_RAMALFISICO,ramal_fisico)},${HASH(DB,atributo)}));
+			Set(dial_string=MeetMe(${HASH(DB_RAMALFISICO,ramal_fisico)},${HASH(DB,atributo)}));
+		break;
+		case FAX:
+			KAdjustForFax();
+			Set(HASH(DB)=${ODBC_DISCA(f_fax,numero,${numero_destino})});
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Recebendo FAX | [path=/tmp/${CDR(linkedid)}]);
+			Answer();
+			Set(dial_string=ReceiveFax(/tmp/${CDR(linkedid)}.tiff,d));
+		break;
+		default:
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Discando | Dial(${dial_string},60,tTrM(atendeu)));
+			Set(dial_string=Dial(${dial_string},${TEMPO_DIAL},xXtT${ring}M(atendeu)));
+		break;
+	};
+	return;
+};
+
+macro MACRO-dialstatus(dispositivo){
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
+	switch(${dispositivo}){
+		case QUEUE:
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Termino da ligação | [queuestatus=${QUEUESTATUS}]);
+			&MACRO-queuestatus(${QUEUESTATUS});
+		break;
+		case MEETME:
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Termino da ligação | [dialstatus=${DIALSTATUS}]);
+		break;
+		case FAX:
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Termino da ligação | [faxstatus=${FAXSTATUS}]);
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Convertendo /tmp/${CDR(linkedid)}.tiff para /tmp/${CDR(linkedid)}.pdf);
+			System(tiff2pdf -o /tmp/${CDR(linkedid)}.pdf /tmp/${CDR(linkedid)}.tiff);
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Enviando FAX | [email=${HASH(DB,email)}]);
+			System(echo "Origem: ${numero_origem}" | email -a /tmp/${CDR(linkedid)}.pdf -s "Fax - ${numero_origem}" ${HASH(DB,email)});
+		break;
+		default:
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Termino da ligação | [dialstatus=${DIALSTATUS}]);
+			if ( "${DIALSTATUS}" != "ANSWER" ){
+				if ( ${id_destino} > 0 ){
+					&MACRO-dialstatus_sainte(${DIALSTATUS});
+				}else{
+					&MACRO-dialstatus_ramal(${DIALSTATUS});
+				};
+			};
+			Hangup();
+		break;
+	};
+	return;
+};
+
+macro MACRO-transferencia(){
+	Wait(5);
+	&MACRO-seleciona_ramalvirtual(${BLINDTRANSFER});
+	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${HASH(DB_RAMALVIRTUAL,ramal_virtual)},Context:${CONTEXT} | Retornando a ligação | [ramal=${HASH(DB_RAMALVIRTUAL,ramal_virtual)}]);
+	goto permissao_ramaldestino|${HASH(DB_RAMALVIRTUAL,ramal_virtual)}|1;
+	return;
+};
+
+macro MACRO-entrada(){
+	Set(__id_destino=-1);
+	Set(__gravacao=0);
+	Set(__TRANSFER_CONTEXT=transferencia);
+	Set(HASH(DB_PARAMETROS)=${ODBC_PARAMETROS_GERAIS()});
+	Set(HASH(DB_TRONCO)=${ODBC_TRONCO_ATENDEU(${CUT(CHANNEL,-,1)})});
+	if ( ${ODBCROWS} > 0 ){
+		if ( "${CALLERID(num)}" != "" ){
+			if ( ${HASH(DB_TRONCO,add_zero)} = 1 ){
+				Set(__numero_origem=0${CALLERID(num)});
+			}else{
+				Set(__numero_origem=${CALLERID(num)});
+			};
+		}else{
+			Set(__numero_origem=Anonymous);
+		};
+		Set(CALLERID(num)=${numero_origem});
+		Set(__id_tronco=${HASH(DB_TRONCO,id)});
+		Set(GROUP(${HASH(DB_TRONCO,tronco)})=${HASH(DB_TRONCO,tronco)});
+		Set(__numero_destino=${HASH(DB_TRONCO,ramal_principal)});
+		if ( ${HASH(DB_TRONCO,id_empresa)} > 0 ){
+			Set(__id_empresa=${HASH(DB_TRONCO,id_empresa)});
+		}else{
+			Set(__id_empresa=0);
+		};
+	};
+	Set(__numero_discado=${numero_destino});
+	return;
+};
+
+macro MACRO-entrada_interligacao(){
+	Set(__id_destino=-1);
+	Set(__gravacao=0);
+	Set(__TRANSFER_CONTEXT=transferencia);
+	Set(HASH(DB_PARAMETROS)=${ODBC_PARAMETROS_GERAIS()});
+	Set(HASH(DB_TRONCO)=${ODBC_TRONCO_ATENDEU(${CUT(CHANNEL,-,1)})});
+	if ( ${ODBCROWS} > 0 ){
+		Set(__numero_origem=${CALLERID(num)});
+		Set(__id_tronco=${HASH(DB_TRONCO,id)});
+		Set(GROUP(${HASH(DB_TRONCO,tronco)})=${HASH(DB_TRONCO,tronco)});
+		Set(__id_empresa=${HASH(DB_TRONCO,id_empresa)});
+	}else{
+		&MACRO-dialstatus_sainte(CONGESTION);
+	};
+	Set(numero_discado=${numero_destino});
+	return;
+};
+
+macro MACRO-tarifacao(){
+	if ( ${CDR(billsec)} > 0 ){
+		Set(tipo=${REGEX("/" ${tarifacao_passo})});
+		if ( ${tipo} = 1 ){
+			if ( ${CDR(billsec)} > ${CUT(tarifacao_passo,/,1)} ){
+				Set(custo=${MATH(${CUT(tarifacao_passo,/,2)}*${tarifacao_custo},f)});
+				Set(custo=${MATH(${custo}/60,f)});
+				Set(tarifacao=$[CEIL(${MATH(${CDR(billsec)}/${CUT(tarifacao_passo,/,2)})})]);
+				Set(tarifacao=${MATH(${custo}*${tarifacao})});
+			}else{
+				Set(tarifacao=${MATH(${CUT(tarifacao_passo,/,1)}*${tarifacao_custo},f)});
+				Set(tarifacao=${MATH(${tarifacao}/60,f)});
+			};
+		}else{
+			Set(tarifacao=$[CEIL(${MATH(${CDR(billsec)}/${tarifacao_passo})})]);
+			Set(tarifacao=${MATH(${tarifacao}*${tarifacao_custo},f)});
+		};
+	}else{
+		Set(tarifacao=0.00);
+	};
+	return;
+};
+
+macro MACRO-rechamada(){
+	Answer();
+	Read(ura,/aldeia/etc/asterisk/audio/prompt-12,1);
+	if ( "${ura}" = "1" ){
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Ativando a rechamada);
+		Set(call=${UNIQUEID});
+		system(echo "Channel: Local/${numero_origem}@rechamada" > /var/spool/asterisk/tmp/${call}.call);
+		system(echo "Context: permissao_ramaldestino" >> /var/spool/asterisk/tmp/${call}.call);
+		system(echo "Extension: ${numero_destino}" >> /var/spool/asterisk/tmp/${call}.call);
+		system(echo "Callerid: RECHAMADA" >> /var/spool/asterisk/tmp/${call}.call);
+		system(echo "MaxRetries: 20" >> /var/spool/asterisk/tmp/${call}.call);
+		system(echo "RetryTime: 15" >> /var/spool/asterisk/tmp/${call}.call);
+		system(echo "WaitTime: 60" >> /var/spool/asterisk/tmp/${call}.call);
+		system(echo "Set:A=${numero_origem}" >> /var/spool/asterisk/tmp/${call}.call);
+		system(echo "Set:B=${numero_destino}" >> /var/spool/asterisk/tmp/${call}.call);
+		TrySystem(mv /var/spool/asterisk/tmp/${call}.call /var/spool/asterisk/outgoing);
+		Playback(/aldeia/etc/asterisk/audio/prompt-13);
+	};
+	return;
+};
+
+
+/////////////////////////////////////////////////////// NAO ESTÁ EM PRODUÇÃO
+macro MACRO-find_confno(){
+	for (x=0; ${x} <= 9; x=${x} + 1) {
+		MeetMeCount(${x},participante);
+		if ( ${participante} = 0 ){
+			Set(confno=${x});
+		};
+	};
+	return;
+};
+
+macro macro-conferencia(){
+	Set(CONFNO=0);
+	Set(DB(CONFNO/${CUT(CHANNEL,-,1)})=${CONFNO});
+	ChannelRedirect(${BRIDGEPEER},dynamic-nway,${CONFNO},1);
+	Read(DEST,dial,,i);
+	Set(DYNAMIC_FEATURES=nway-inv#nway-noinv);
+	Dial(Local/${DEST}@permissao_ramaldestino,,g);
+	Set(DYNAMIC_FEATURES=);
+	ChannelRedirect(${CHANNEL},dynamic-nway,${CONFNO},1);
+	return;
+};
+/////////////////////////////////////////////////////// NAO ESTÁ EM PRODUÇÃO
+
+macro MACRO-pin_temporario(){
+	Set(tempo=${MATH(${HASH(DB_PARAMETROS,pin_temporario)}*60,i)});
+	Set(tempo=${MATH(${STRFTIME(${EPOCH},,%s)}-${tempo})},i);
+	Noop(${STRFTIME(${EPOCH},,%s)}-${tempo});
+	Set(HASH(DB)=${ODBC_PIN_TEMPORARIO(${CUT(CHANNEL,-,1)},${CUT(tempo,.,1)})});
+	if ( ${ODBCROWS} > 0 ){
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Chamada atraves do PIN temporario [PIN=${HASH(DB,pin)}]);
+		Set(ODBC_PIN_TEMPORARIO_INSERT(${HASH(DB,pin)},${HASH(DB,nome)},${CUT(CHANNEL,-,1)},${STRFTIME(${EPOCH},,%s)},${UNIQUEID})=insert);
+		Set(HASH(DB_USUARIO)=${ODBC_USUARIO(${HASH(DB,pin)})});
+		Set(senha=${HASH(DB,pin)});
+		goto auxiliar|${numero_destino}|1;
+	};
+	return;
+};
+
+macro MACRO-agenda(){
+	Set(HASH(DB)=${ODBC_AGENDA(${numero_origem})});
+	if ( ${ODBCROWS} > 0 ){
+		Set(CALLERID(name)=${HASH(DB,empresa)});
+	};
+	return;
+};
