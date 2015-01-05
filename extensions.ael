@@ -1,3 +1,4 @@
+//teste
 #include "/etc/asterisk/macros.ael";
 #include "/aldeia/etc/asterisk/confs/ext_context.ael";
 #include "/aldeia/etc/asterisk/confs/ext_ura.ael";
