@@ -1,0 +1,1 @@
+####Arquivos Padrão Asterisk
