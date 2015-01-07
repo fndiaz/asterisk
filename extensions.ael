@@ -8,7 +8,7 @@ context default {
 	};
 	_. => {
 		//Consulta a base de dados atraves do alias 
-		goto permissao_ramaldestino|8040|1;
+		Hangup();
 	};
 };
 
