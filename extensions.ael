@@ -708,8 +708,21 @@ frompstn:
 
 context pos_interligacao {
 	_X. => {
+		Set(__numero_discado=${EXTEN});
+		Set(__numero_destino=${EXTEN});
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Checando rota | [id_destino=${id_destino}][rota=${EXTEN:0:1}]);
-		Set(HASH(ROTA)=${ODBC_SELECIONA_ROTA(${id_destino},${EXTEN:0:1},${id_empresa})});
+
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando permissão de consulta a portabilidade);
+		Set(HASH(DB_DESTINO)=${ODBC_DESTINO(${id_destino})});
+		Set(HASH(PORTABILIDADE)=${ODBC_PORTABILIDADE()});
+		if ( "${HASH(DB_DESTINO,portabilidade)}" = "1" && ${HASH(PORTABILIDADE,ativo)} = 1 ){
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Consulta a portabilidade);
+			&MACRO-consulta_portabilidade();
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando novo destino);
+			goto seleciona_destino|${operadora}${HASH(ROTA,adiciona_antes)}${numero_destino:1}|1;
+		};
+
+		Set(HASH(ROTA)=${ODBC_SELECIONA_ROTA(${id_destino},${numero_destino:0:1},${id_empresa})});
 		if (${ODBCROWS} = 0){
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Rota não encontrada);
 			&MACRO-dialstatus_sainte(CONGESTION);
