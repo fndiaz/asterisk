@@ -159,7 +159,7 @@ transbordo:
 				}else{
 					AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Não existe controle de minutos);
 				};
-				if ( ${HASH(DB,tarifado)} = 0 ){
+				if ( ${HASH(ROTA,tarifado)} = 0 ){
 					Set(bina=${HASH(DB_RAMALVIRTUAL,bina_interno)});
 					Set(ring=);
 				}else{
