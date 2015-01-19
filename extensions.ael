@@ -622,7 +622,7 @@ context from-pstn {
 
 	s => {
 		Set(HASH(DB_TRONCO)=${ODBC_TRONCO_ATENDEU(${CUT(CHANNEL,-,1)})});
-		goto ${HASH(DB_TRONCO,ramal_principal)}|1;
+		goto ${HASH(DB_TRONCO,chave)}|1;
 	};
 
 	_X. => {
