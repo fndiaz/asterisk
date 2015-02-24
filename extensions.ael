@@ -222,7 +222,7 @@ context permissao_rotadestino {
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando permissão de discagem do PIN [nome=${HASH(DB_USUARIO,nome)}]);
 			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_USUARIO_PERMISSAO_DESTINO(${HASH(DB_USUARIO,pin)},${id_destino})});
 		};
-		if ( ${ODBCROWS} = 0 ){
+		if ( ${ODBCROWS} = 0 && "${HASH(DB_DESTINO,tipo_chamada)}" != "EMERGENCIA" ){
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Sem permissão para discagem, verificando a Whitelist);
 			&MACRO-whitelist_ramal();
 		};
@@ -272,11 +272,9 @@ context permissao_ramalorigem {
 				};
 			};
 			Set(HASH(DB_DESTINO)=${ODBC_DESTINO(${id_destino})});
-			if ( ${HASH(DB_PERMISSAOORIGEM,blacklist)} = 1  && ${id_destino} > 0 ){
-				if ( ${HASH(DB_DESTINO,tarifado)} = 1 ){
-					AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Checando a BlackList);
-					&MACRO-blacklist_ramal();
-				};
+			if ( ${HASH(DB_DESTINO,tarifado)} = 1  && ${id_destino} > 0 ){
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Checando a BlackList);
+				&MACRO-blacklist_ramal();
 			};
 			if ( ${HASH(DB_PERMISSAOAPLICACAO,cadeado_ativo)} = 1 && ${id_destino} > 0 ){
 				if ( ${HASH(DB_DESTINO,tarifado)} = 1 ){
@@ -578,8 +576,10 @@ transferencia:
 				};
 			};
 			if ( ${HASH(DB_PERMISSAOAPLICACAODESTINO,cs_ativo)} = 1 ){
-				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Checando chefe secretaria);
-				&MACRO-chefesecretaria();
+				if ( "${BLINDTRANSFER}" = "" && "${TRANSFERERNAME}" = "" ){
+					AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Checando chefe secretaria);
+					&MACRO-chefesecretaria();
+				};
 			};
 			Noop(${HASH(DB_PERMISSAODESTINO,id_ramal_virtual)},IMEDIATO,${STRFTIME(${EPOCH},,%a)},${STRFTIME(${EPOCH},,%R)});
 			Set(HASH(DB_DESVIOS)=${ODBC_DESVIOS(${numero_destino},IMEDIATO,${STRFTIME(${EPOCH},,%a)},${STRFTIME(${EPOCH},,%R)})});
