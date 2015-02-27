@@ -212,7 +212,7 @@ macro MACRO-dialstatus_ramal(status){
 				Set(ODBC_BILHETE_CHAMADA(${id_tronco},${numero_origem},${numero_destino},${CDR(linkedid)},${CDR(start)},${CDR(billsec)},BUSY,0,${id_empresa},${id_destino},${HASH(DB_PERMISSAODESTINO,gravacao)},${MASTER_CHANNEL(ATENDIDO)},${nome_origem},${departamento_origem},${id_transbordo},${arquivo_gravacao})=insert);
 				&MACRO-transferencia();
 			}else{
-				if ( ${id_destino} = 0 ){
+				if ( ${id_destino} = 0 && "${BLINDTRANSFER}" = "" && "${TRANSFERERNAME}" = "" && ${HASH(DB_PERMISSAOAPLICACAODESTINO,voicemail_ativo)} = 0 ){
 					if ( ${HASH(DB_PARAMETROS,rechamada)} = 1 ){
 						&MACRO-rechamada();
 					};

@@ -186,7 +186,7 @@ transbordo:
 				if ( ${HASH(ROTA,transbordo)} > 0 ){
 					AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Transbordo encontrado);
 					Set(__id_transbordo=${HASH(ROTA,id_tronco)});
-					Set(HASH(ROTA)=${ODBC_SELECIONA_TRANSBORDO(${id_destino},${EXTEN:0:1},${HASH(ROTA,transbordo)},${HASH(DB_PERMISSAOORIGEM,id_empresa)})});
+					Set(HASH(ROTA)=${ODBC_SELECIONA_TRANSBORDO(${id_destino},${EXTEN:0:1},${HASH(ROTA,transbordo)},${id_empresa})});
 					goto seleciona_rota|${EXTEN}|transbordo;
 				}else{
 					AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Transbordo inexistente);
@@ -217,7 +217,7 @@ context permissao_rotadestino {
 		if ( ${LEN(${senha})} = 0 ){
 			&MACRO-pin_temporario();
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando permissão de discagem do ramal [ramal=${HASH(DB_RAMALVIRTUAL,ramal_virtual)}]);
-			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_PERMISSAO_DESTINO(${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${id_destino})});
+			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_PERMISSAO_DESTINO(${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${HASH(DB_DESTINO,tipo_chamada)})}); //versao nova
 		}else{
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando permissão de discagem do PIN [nome=${HASH(DB_USUARIO,nome)}]);
 			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_USUARIO_PERMISSAO_DESTINO(${HASH(DB_USUARIO,pin)},${id_destino})});
@@ -693,6 +693,7 @@ context interligacao {
 	_. => {
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CALLERID(num)},${EXTEN},Context:${CONTEXT} | Chamada entrante | [origem=${CALLERID(num)}][destino=${EXTEN}]);
 		Set(__numero_destino=${EXTEN});
+		Set(callback=1);
 		&MACRO-entrada_interligacao();
 		System(echo "INICIO|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},0,${HASH(DB_TRONCO,id_tronco)},-1,${numero_origem},${numero_discado}" >> /tmp/bilhete.txt);
 		Set(DB(${CDR(linkedid)}/controle)=0);
