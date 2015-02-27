@@ -220,7 +220,7 @@ context permissao_rotadestino {
 			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_PERMISSAO_DESTINO(${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${HASH(DB_DESTINO,tipo_chamada)})}); //versao nova
 		}else{
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando permissão de discagem do PIN [nome=${HASH(DB_USUARIO,nome)}]);
-			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_USUARIO_PERMISSAO_DESTINO(${HASH(DB_USUARIO,pin)},${HASH(DB_DESTINO,tipo_chamada)})});
+			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_USUARIO_PERMISSAO_DESTINO(${HASH(DB_USUARIO,pin)},${id_destino})});
 		};
 		if ( ${ODBCROWS} = 0 && "${HASH(DB_DESTINO,tipo_chamada)}" != "EMERGENCIA" ){
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Sem permissão para discagem, verificando a Whitelist);
