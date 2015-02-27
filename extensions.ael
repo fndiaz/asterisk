@@ -220,7 +220,7 @@ context permissao_rotadestino {
 			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_PERMISSAO_DESTINO(${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${HASH(DB_DESTINO,tipo_chamada)})}); //versao nova
 		}else{
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando permissão de discagem do PIN [nome=${HASH(DB_USUARIO,nome)}]);
-			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_USUARIO_PERMISSAO_DESTINO(${HASH(DB_USUARIO,pin)},${id_destino})});
+			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_USUARIO_PERMISSAO_DESTINO(${HASH(DB_USUARIO,pin)},${HASH(DB_DESTINO,tipo_chamada)})});
 		};
 		if ( ${ODBCROWS} = 0 && "${HASH(DB_DESTINO,tipo_chamada)}" != "EMERGENCIA" ){
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Sem permissão para discagem, verificando a Whitelist);
@@ -649,6 +649,10 @@ context from-pstn {
 		};
 		&MACRO-seleciona_ramalfisico(${numero_destino});
 		if ( ${HASH(DB_TRONCO,chave)} = ${EXTEN} ){
+			Set(HASH(DB)=${ODBC_FERIADO(${STRFTIME(${EPOCH},,%d)},${STRFTIME(${EPOCH},,%h)})});
+			if ( ${ODBCROWS} > 0 ){
+				Verbose(${HASH(DB,acao)});
+			};
 			if ( ${HASH(DB_TRONCO,ura)} = 1 ){
 				if ( ${HASH(DB_PARAMETROS,ura_antes_horario)} = 1 ){
 					AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Iniciando a URA);
