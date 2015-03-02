@@ -217,7 +217,7 @@ context permissao_rotadestino {
 		if ( ${LEN(${senha})} = 0 ){
 			&MACRO-pin_temporario();
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando permissão de discagem do ramal [ramal=${HASH(DB_RAMALVIRTUAL,ramal_virtual)}]);
-			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_PERMISSAO_DESTINO(${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${HASH(DB_DESTINO,tipo_chamada)})}); //versao nova
+			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_PERMISSAO_DESTINO(${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${HASH(DB_DESTINO,tipo_chamada)},${id_destino})}); //versao nova
 		}else{
 			Set(HASH(DB_DESTINO)=${ODBC_DESTINO(${id_destino})});
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando permissão de discagem do PIN [nome=${HASH(DB_USUARIO,nome)}]);
