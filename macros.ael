@@ -129,7 +129,7 @@ macro MACRO-chefesecretaria(){
 	};
 	if ( ${HASH(DB_PERMISSAOAPLICACAODESTINO,cs_chamada${sentido})} = 1 ){
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | [sentido=${sentido}]);
-		Set(HASH(DB)=${ODBC_CHEFESECRETARIA(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})});
+		Set(HASH(DB)=${ODBC_CHEFESECRETARIA(${numero_destino})});
 		if ( ${ODBCROWS} = 0 ){
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} |  Numero de destino alterado para ${HASH(DB_PERMISSAOAPLICACAODESTINO,cs_numero)});
 			goto permissao_ramaldestino|${HASH(DB_PERMISSAOAPLICACAODESTINO,cs_numero)}|1;
