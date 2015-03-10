@@ -150,7 +150,6 @@ macro MACRO-consulta_portabilidade(){
 		Set(data=${STRFTIME(${MATH(${STRFTIME(${EPOCH},,%s)}-${MATH(${HASH(PORTABILIDADE,tempo_timeout)}*86400,int)},int)},,%F %T)});
 		Set(HASH(DB)=${ODBC_PORTABILIDADE_CONSULTA(${numero_destino},${data})});
 		Set(ddd_padrao=);
-//		if ( "${HASH(DB_PERMISSAODESTINO,tipo_chamada)}" = "LOCAL_CELULAR" ){
 		if ( ${LEN(${numero_destino})} <= 10 ){
 			Set(ddd_padrao=${HASH(PORTABILIDADE,ddd_padrao)});
 		};
@@ -172,8 +171,6 @@ macro MACRO-consulta_portabilidade(){
 
 macro MACRO-credito(responsavel,tipo_origem,tipo_chamada){
 	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
-	NoOp( '------------------------------------------------------------------------------------------------------------');
-	NoOp( ${STRFTIME(${EPOCH},GMT${HASH(DB_PARAMETROS,fuso_horario)},%d)} > ${HASH(DB_PARAMETROS,credito_dia)}  );
 	if ( ${STRFTIME(${EPOCH},GMT${HASH(DB_PARAMETROS,fuso_horario)},%d)} > ${HASH(DB_PARAMETROS,credito_dia)} ){
 		Set(data=${STRFTIME(${EPOCH},GMT${HASH(DB_PARAMETROS,fuso_horario)},%G-%m)}-${HASH(DB_PARAMETROS,credito_dia)});
 	}else{
@@ -523,7 +520,7 @@ macro MACRO-entrada_interligacao(){
 };
 
 macro MACRO-tarifacao(){
-	if ( ${CDR(billsec)} > 0 ){
+	if ( ${CDR(billsec)} > 0 && ${HASH(DB_DESTINO,tarifado)} > 0 ){
 		Set(tipo=${REGEX("/" ${tarifacao_passo})});
 		if ( ${tipo} = 1 ){
 			if ( ${CDR(billsec)} > ${CUT(tarifacao_passo,/,1)} ){
