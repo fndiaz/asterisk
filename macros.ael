@@ -446,7 +446,7 @@ macro MACRO-dialstatus(dispositivo){
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Convertendo /tmp/${CDR(linkedid)}.tiff para /tmp/${CDR(linkedid)}.pdf);
 			System(tiff2pdf -o /tmp/${CDR(linkedid)}.pdf /tmp/${CDR(linkedid)}.tiff);
 			Noop(${HASH(DB_PERMISSAODESTINO,ramal_fisico)});
-			Set(HASH(DB)=${ODBC_FAX(${numero_destino})});
+			Set(HASH(DB)=${ODBC_FAX(${HASH(DB_PERMISSAODESTINO,ramal_fisico)})});
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Enviando FAX | [email=${HASH(DB,email)}]);
 			System(echo "Origem: ${numero_origem}" | email -a /tmp/${CDR(linkedid)}.pdf -s "Fax - ${numero_origem}" ${HASH(DB,email)});
 		break;
