@@ -4,11 +4,27 @@
 
 context default {
 	s => {
-		//goto from-pstn|s|1;
+		&MACRO-dialstatus_sainte(CONGESTION);
 	};
 	_. => {
-		//Consulta a base de dados atraves do alias 
-		Hangup();
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CUT(CHANNEL,-,1)},${EXTEN},Context:${CONTEXT} | Chamada via Alias [${EXTEN}]);
+		Set(HASH(DB)=${ODBC_ALIAS_RAMAL(${EXTEN})});
+		if (${ODBCROWS} > 0){
+			Set(__id_destino=-1);
+			Set(__gravacao=0);
+			Set(__TRANSFER_CONTEXT=transferencia);
+			Set(HASH(DB_PARAMETROS)=${ODBC_PARAMETROS_GERAIS()});
+			Set(__numero_origem=${CALLERID(num)});
+			Set(CALLERID(num)=${numero_origem});
+			Set(__id_tronco=-1);
+			Set(__numero_destino=${HASH(DB,ramal)});
+			Set(__id_empresa=0);
+			Set(__numero_discado=${numero_destino});
+			goto queue_local|${HASH(DB,ramal)}|1;
+		}else{
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Alias não encontrado);
+			&MACRO-dialstatus_sainte(CONGESTION);
+		};
 	};
 };
 
@@ -70,12 +86,18 @@ context seleciona_destino {
 		};
 		&MACRO-dialstatus_sainte(CONGESTION);
 	};
-	
+
 	_*XXX => {
-		//
-		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CUT(CHANNEL,-,1)},${EXTEN},Context:${CONTEXT} | Discagem Abreviada);
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CUT(CHANNEL,-,1)},${EXTEN},Context:${CONTEXT} | Discagem Abreviada [${EXTEN}]);
+		Set(HASH(DB)=${ODBC_DISCAGEM_ABREVIADA(${EXTEN})});
+		if (${ODBCROWS} > 0){
+			goto ramais|${HASH(DB,destino)}|1;
+		}else{
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Discagem abreviada não encontrada);
+			&MACRO-dialstatus_sainte(CONGESTION);
+		};
 	};
-	
+
 	_*8X. => {
 		Set(__id_destino=0);
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CUT(CHANNEL,-,1)},${EXTEN},Context:${CONTEXT} | Discagem por PIN);
@@ -100,6 +122,12 @@ context seleciona_destino {
 
 includes {
 	estacionamento;
+	};
+
+	_111111 => {
+		Dial(Gtalk/asterisk/andrepr@gmail.com);
+		Dial(Gtalk/asterisk/+5516992340876@voice.google.com);
+		JABBERSend(asterisk,andrepr@gmail.com,This is a test Message);
 	};
 };
 
@@ -299,9 +327,6 @@ context permissao_ramalorigem {
 		};
 		Set(GROUP(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})=${HASH(DB_RAMALVIRTUAL,ramal_virtual)});
 		Set(__id_empresa=${HASH(DB_PERMISSAOORIGEM,id_empresa)});
-		System(echo "INICIO|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},0,${numero_origem},${numero_destino},${HASH(DB_RAMALVIRTUAL,nome)},${HASH(DB_RAMALVIRTUAL,departamento)}" >> /tmp/bilhete.txt);
-		Set(DB(${CDR(linkedid)}/controle)=0);
-		Set(controle=0);
 		if ( ${id_destino} = 0 ) {
 			goto permissao_ramaldestino|${EXTEN}|1;
 		}else{
@@ -393,9 +418,6 @@ context permissao_usuarioorigem {
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Permissão não cadastrada);
 			&MACRO-dialstatus_sainte(CONGESTION);
 		};
-		System(echo "INICIO|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},0,${numero_origem},${numero_destino},${HASH(DB_USUARIO,nome)},${HASH(DB_USUARIO,departamento)}" >> /tmp/bilhete.txt);
-		Set(DB(${CDR(linkedid)}/controle)=0);
-		Set(controle=0);
 		if ( ${id_destino} = 0 ) {
 			goto permissao_ramaldestino|${EXTEN}|1;
 		}else{
@@ -412,6 +434,7 @@ context disca {
 		Set(dispositivo=${CUT(dial_string,/,1)});
 		&MACRO-disca(${CUT(dial_string,/,1)});
 		Exec(${dial_string});
+		FollowMe(${numero_destino},d);
 		&MACRO-dialstatus(${dispositivo});
 	};
 
@@ -424,13 +447,9 @@ context disca {
 		if ( "${BLINDTRANSFER}" != "" || "${TRANSFERERNAME}" != "" || "${CUT(CHANNEL,/,1)}" = "Local" || "${CUT(CHANNEL,/,1)}" = "Transfered"){
 			if ( "${CUT(CHANNEL,/,1)}" = "Transfered" || "${CUT(CHANNEL,/,1)}" = "Local" ){
 				&MACRO-seleciona_ramalvirtual(${BRIDGEPEER});
-//				System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${controle},${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${DIALSTATUS}" >> /tmp/bilhete.txt);
-				System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${controle},${DIALSTATUS}${QUEUESTATUS}" >> /tmp/bilhete.txt);
 			};
 		}else{
 			&MACRO-seleciona_ramalvirtual(${CHANNEL});
-//			System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${MASTER_CHANNEL(controle)},${MASTER_CHANNEL(numero_origem)},${MASTER_CHANNEL(numero_discado)},${DIALSTATUS}" >> /tmp/bilhete.txt);
-			System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${MASTER_CHANNEL(controle)},${DIALSTATUS}${QUEUESTATUS}" >> /tmp/bilhete.txt);
 		};
 		if ( "${CUT(BRIDGEPEER,/,1)}" != "Local"){
 			&MACRO-seleciona_ramalvirtual(${BRIDGEPEER});
@@ -503,14 +522,6 @@ context disca {
 				};
 			};
 		};
-//		if ( "${dispositivo}" = "FAX" ){
-//			System(tiff2pdf -o /tmp/${CDR(linkedid)}.pdf /tmp/${CDR(linkedid)}.tiff);
-//			Set(HASH(DB)=${ODBC_FAX(${numero_destino})});
-//			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Enviando FAX | [email=${HASH(DB,email)}]);
-//			System(echo "Origem: ${numero_origem}" | email -a /tmp/${CDR(linkedid)} -s "Fax - ${numero_origem}" ${HASH(DB,email)});
-//			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Termino da ligação | [faxstatus=${FAXSTATUS}] | [faxerror: ${FAXERROR}]);
-//			Hangup();
-//		};
 		if ( "${MASTER_CHANNEL(CHANNEL_GRAVA)}" != "" ){
 			&MACRO-seleciona_ramalvirtual(${MASTER_CHANNEL(CHANNEL_GRAVA)});
 			Noop(${HASH(DB_RAMALVIRTUAL,ramal_virtual)});
@@ -551,11 +562,6 @@ context macro-atendeu {
 		};
 
 		&MACRO-seleciona_ramalvirtual(${CUT(CHANNEL,-,1)});
-		if ( ${ODBCROWS} > 0 ){
-			System(echo "ATENDEU|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${DB(${CDR(linkedid)}/controle)},${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${HASH(DB_RAMALVIRTUAL,nome)},${HASH(DB_RAMALVIRTUAL,departamento)}" >> /tmp/bilhete.txt);
-		}else{
-			System(echo "ATENDEU|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${DB(${CDR(linkedid)}/controle)},${numero_destino}" >> /tmp/bilhete.txt);
-		};
 	};
 };
 
@@ -638,9 +644,6 @@ context from-pstn {
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CALLERID(num)},${EXTEN},Context:${CONTEXT} | Chamada entrante | [origem=${CALLERID(num)}][destino=${EXTEN}]);
 		&MACRO-entrada();
 		&MACRO-blacklist_entrada();
-		Set(DB(${CDR(linkedid)}/controle)=0);
-		Set(controle=0);
-		System(echo "INICIO|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},0,${HASH(DB_TRONCO,id_tronco)},-1,${numero_origem},${numero_discado}" >> /tmp/bilhete.txt);
 		Set(__numero_destino=${HASH(DB_TRONCO,ramal_principal)});
 		Set(HASH(DB_DDR)=${ODBC_DDR(${EXTEN:-4})});
 		if ( ${ODBCROWS} > 0 ){
@@ -705,9 +708,6 @@ context interligacao {
 		Set(__numero_destino=${EXTEN});
 		Set(callback=1);
 		&MACRO-entrada_interligacao();
-		System(echo "INICIO|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},0,${HASH(DB_TRONCO,id_tronco)},-1,${numero_origem},${numero_discado}" >> /tmp/bilhete.txt);
-		Set(DB(${CDR(linkedid)}/controle)=0);
-		Set(controle=0);
 frompstn:
 		Set(__TEMPO_DIAL=${HASH(DB_PARAMETROS,tempo_chamada_externa)});
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CUT(CHANNEL,-,1)},${EXTEN},Context:${CONTEXT} | Chamada via interligação);
@@ -772,17 +772,8 @@ context transferencia {
 		StopMixMonitor();
 		if ( "${BLINDTRANSFER}" != "" ){
 			&MACRO-seleciona_ramalvirtual(${BRIDGEPEER});
-			System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${controle},${HASH(DB_RAMALVIRTUAL,ramal_virtual)}" >> /tmp/bilhete.txt);
-			Set(DB(${CDR(linkedid)}/controle)=${MATH(${DB(${CDR(linkedid)}/controle)}+1,i)});
-			Set(controle=${DB(${CDR(linkedid)}/controle)});
-			System(echo "BTX|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${controle},${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${HASH(DB_RAMALVIRTUAL,nome)},${HASH(DB_RAMALVIRTUAL,departamento)},${EXTEN}" >> /tmp/bilhete.txt);
-//			System(echo "BTX|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${HASH(DB_RAMALVIRTUAL,nome)},${HASH(DB_RAMALVIRTUAL,departamento)},${EXTEN}" >> /tmp/bilhete.txt);
 			if ("${dispositivo}" = "QUEUE" ){
-//				if ( "${tempo}" = "" ){
-//					Set(tempo=0);
-//				}else{
-					Set(tempo=${MATH(${STRFTIME(${EPOCH},,%s)}-${tempo},i)});
-//				};
+				Set(tempo=${MATH(${STRFTIME(${EPOCH},,%s)}-${tempo},i)});
 			}else{
 				Set(tempo=${CDR(billsec)});
 			};
@@ -873,9 +864,6 @@ context transferencia {
 			&MACRO-seleciona_ramalfisico(${EXTEN});
 			if ( ${ODBCROWS} > 0 ){
 				&MACRO-seleciona_ramalvirtual(${TRANSFERERNAME});
-				Set(DB(${CDR(linkedid)}/controle)=${MATH(${DB(${CDR(linkedid)}/controle)}+1,i)});
-				Set(controle=${DB(${CDR(linkedid)}/controle)});
-				System(echo "ATX|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${controle},${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${HASH(DB_RAMALVIRTUAL,nome)},${HASH(DB_RAMALVIRTUAL,departamento)},${EXTEN}" >> /tmp/bilhete.txt);
 				if ( ${ODBCROWS} > 0 ){
 					if ( ${numero_origem} = ${HASH(DB_RAMALVIRTUAL,ramal_virtual)} ){
 						&MACRO-seleciona_ramalfisico(${numero_discado});
@@ -901,10 +889,6 @@ context transferencia {
 							Set(__numero_origem=${HASH(DB_RAMALFISICO,ramal_virtual)});
 							Set(__nome_origem=${HASH(DB_RAMALFISICO,nome)});
 							Set(__departamento_origem=${HASH(DB_RAMALFISICO,departamento)});
-
-							//Set(__numero_origem=${HASH(DB_RAMALVIRTUAL,ramal_virtual)});
-							//Set(__nome_origem=${HASH(DB_RAMALVIRTUAL,nome)});
-							//Set(__departamento_origem=${HASH(DB_RAMALVIRTUAL,departamento)});
 						};
 						Set(__numero_destino=${EXTEN});
 						Set(__numero_discado=${EXTEN});

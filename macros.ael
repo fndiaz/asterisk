@@ -191,11 +191,9 @@ macro MACRO-dialstatus_ramal(status){
 	if ( "${BLINDTRANSFER}" != "" || "${TRANSFERERNAME}" != "" || "${CUT(CHANNEL,/,1)}" = "Local" || "${CUT(CHANNEL,/,1)}" = "Transfered"){
 		if ( "${CUT(CHANNEL,/,1)}" = "Transfered" || "${CUT(CHANNEL,/,1)}" = "Local" ){
 			&MACRO-seleciona_ramalvirtual(${BRIDGEPEER});
-			//System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${controle},${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${TOUPPER(${status})}" >> /tmp/bilhete.txt);
 		};
 	}else{
 		&MACRO-seleciona_ramalvirtual(${CHANNEL});
-		//System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${MASTER_CHANNEL(controle)},${MASTER_CHANNEL(numero_origem)},${MASTER_CHANNEL(numero_discado)},${TOUPPER(${status})}" >> /tmp/bilhete.txt);
 	};
 	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
 	switch("${TOUPPER(${status})}"){
@@ -280,11 +278,9 @@ macro MACRO-dialstatus_sainte(status){
 	if ( "${BLINDTRANSFER}" != "" || "${TRANSFERERNAME}" != "" || "${CUT(CHANNEL,/,1)}" = "Local" || "${CUT(CHANNEL,/,1)}" = "Transfered"){
 		if ( "${CUT(CHANNEL,/,1)}" = "Transfered" || "${CUT(CHANNEL,/,1)}" = "Local" ){
 			&MACRO-seleciona_ramalvirtual(${BRIDGEPEER});
-			System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${controle},${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${TOUPPER(${status})}" >> /tmp/bilhete.txt);
 		};
 	}else{
 		&MACRO-seleciona_ramalvirtual(${CHANNEL});
-		System(echo "FIM|${STRFTIME(${EPOCH},,%s)},${CDR(linkedid)},${MASTER_CHANNEL(controle)},${MASTER_CHANNEL(numero_origem)},${MASTER_CHANNEL(numero_discado)},${TOUPPER(${status})}" >> /tmp/bilhete.txt);
 	};
 
 	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
