@@ -52,7 +52,7 @@ macro MACRO-blacklist_ramal(){
 
 macro MACRO-whitelist_ramal(){
 	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checar Whitelist ramal);
-	Set(HASH(DB)=${ODBC_LISTAS(${numero_destino:1},Whitelist)});
+	Set(HASH(DB)=${ODBC_LISTAS(${numero_destino},Whitelist)});
 	if ( ${ODBCROWS} = 0 ){
 		goto ramais,*8${numero_discado},1;
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Chamada bloqueada);
