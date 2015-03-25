@@ -236,31 +236,30 @@ transbordo:
 context permissao_rotadestino {
 	_X. => {
 		if ( ${LEN(${HASH(DB_PERMISSAODESTINO,portabilidade)})} = 0 ){
-		Set(__numero_destino=${EXTEN});
-		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Ramal encontrado [ramal=${HASH(DB_RAMALVIRTUAL,ramal_virtual)}]);
-		if ( ${LEN(${senha})} = 0 ){
-			&MACRO-pin_temporario();
-			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando permissão de discagem do ramal [ramal=${HASH(DB_RAMALVIRTUAL,ramal_virtual)}]);
-			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_PERMISSAO_DESTINO(${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${HASH(DB_DESTINO,tipo_chamada)},${id_destino})}); //versao nova
-		}else{
-			Set(HASH(DB_DESTINO)=${ODBC_DESTINO(${id_destino})});
-			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando permissão de discagem do PIN [nome=${HASH(DB_USUARIO,nome)}]);
-			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_USUARIO_PERMISSAO_DESTINO(${HASH(DB_USUARIO,pin)},${HASH(DB_DESTINO,tipo_chamada)},${id_destino})});
-		};
-		if ( ${ODBCROWS} = 0 && "${HASH(DB_DESTINO,tipo_chamada)}" != "EMERGENCIA" ){
-			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Sem permissão para discagem, verificando a Whitelist);
+			Set(__numero_destino=${EXTEN});
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Ramal encontrado [ramal=${HASH(DB_RAMALVIRTUAL,ramal_virtual)}]);
 			if ( ${LEN(${senha})} = 0 ){
-				&MACRO-whitelist_ramal();
+				&MACRO-pin_temporario();
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando permissão de discagem do ramal [ramal=${HASH(DB_RAMALVIRTUAL,ramal_virtual)}]);
+				Set(HASH(DB_PERMISSAODESTINO)=${ODBC_PERMISSAO_DESTINO(${HASH(DB_RAMALVIRTUAL,ramal_virtual)},${HASH(DB_DESTINO,tipo_chamada)},${id_destino})}); //versao nova
 			}else{
-				&MACRO-whitelist_usuario();
+				Set(HASH(DB_DESTINO)=${ODBC_DESTINO(${id_destino})});
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Checando permissão de discagem do PIN [nome=${HASH(DB_USUARIO,nome)}]);
+				Set(HASH(DB_PERMISSAODESTINO)=${ODBC_USUARIO_PERMISSAO_DESTINO(${HASH(DB_USUARIO,pin)},${HASH(DB_DESTINO,tipo_chamada)},${id_destino})});
 			};
-			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_TIPO_CHAMADA(${id_destino})});
-		};
-		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Permissão de discagem liberada);
-		Set(GROUP(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})=${HASH(DB_RAMALVIRTUAL,ramal_virtual)});
+			if ( ${ODBCROWS} = 0 && "${HASH(DB_DESTINO,tipo_chamada)}" != "EMERGENCIA" ){
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Sem permissão para discagem, verificando a Whitelist);
+				if ( ${LEN(${senha})} = 0 ){
+					&MACRO-whitelist_ramal();
+				}else{
+					&MACRO-whitelist_usuario();
+				};
+				Set(HASH(DB_PERMISSAODESTINO)=${ODBC_TIPO_CHAMADA(${id_destino})});
+			};
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Permissão de discagem liberada);
+			Set(GROUP(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})=${HASH(DB_RAMALVIRTUAL,ramal_virtual)});
 		}else{
-		Noop(${LEN(${HASH(DB_PERMISSAODESTINO,portabilidade)})});
-		Set(HASH(DB_PERMISSAODESTINO)=${ODBC_TIPO_CHAMADA(${id_destino})});
+			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_TIPO_CHAMADA(${id_destino})});
 		};
 		goto seleciona_rota|${EXTEN}|1;
 	};
