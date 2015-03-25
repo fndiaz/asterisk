@@ -235,6 +235,7 @@ transbordo:
 
 context permissao_rotadestino {
 	_X. => {
+		if ( ${LEN(${HASH(DB_PERMISSAODESTINO,portabilidade)})} = 0 ){
 		Set(__numero_destino=${EXTEN});
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Ramal encontrado [ramal=${HASH(DB_RAMALVIRTUAL,ramal_virtual)}]);
 		if ( ${LEN(${senha})} = 0 ){
@@ -257,6 +258,10 @@ context permissao_rotadestino {
 		};
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Permissão de discagem liberada);
 		Set(GROUP(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})=${HASH(DB_RAMALVIRTUAL,ramal_virtual)});
+		}else{
+		Noop(${LEN(${HASH(DB_PERMISSAODESTINO,portabilidade)})});
+		Set(HASH(DB_PERMISSAODESTINO)=${ODBC_TIPO_CHAMADA(${id_destino})});
+		};
 		goto seleciona_rota|${EXTEN}|1;
 	};
 };
