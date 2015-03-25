@@ -110,13 +110,23 @@ macro MACRO-blacklist_entrada(){
 };
 
 macro MACRO-gravacao(){
-	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
-	Set(data=${STRFTIME(${EPOCH},,"%Y%m%d")});
-	Set(AUDIOHOOK_INHERIT(MixMonitor)=no);
-	Set(__arquivo_gravacao=${CDR(linkedid)}-${STRFTIME(${EPOCH},,%H%M%S)}-${numero_origem}-${numero_destino});
-	MixMonitor(${data}/${arquivo_gravacao}.WAV,b);
-	Set(__gravacao=1);
-	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | ${data}/${UNIQUEID}-${STRFTIME(${EPOCH},,%H%M%S)}-${numero_origem}-${numero_destino}.WAV);
+	if ( ${LEN(${callid})} = 0 ){
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
+		Set(data=${STRFTIME(${EPOCH},,"%Y%m%d")});
+		Set(AUDIOHOOK_INHERIT(MixMonitor)=no);
+		Set(__arquivo_gravacao=${CDR(linkedid)}-${STRFTIME(${EPOCH},,%H%M%S)}-${numero_origem}-${numero_destino});
+		MixMonitor(${data}/${arquivo_gravacao}.WAV,b);
+		Set(__gravacao=1);
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | ${data}/${UNIQUEID}-${STRFTIME(${EPOCH},,%H%M%S)}-${numero_origem}-${numero_destino}.WAV);
+	}else{
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT});
+		Set(data=${STRFTIME(${EPOCH},,"%Y%m%d")});
+		Set(AUDIOHOOK_INHERIT(MixMonitor)=no);
+		Set(__arquivo_gravacao=${CUT(callid,/,2)});
+		MixMonitor(${callid}.WAV,b);
+		Set(__gravacao=1);
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | ${callid}.WAV);
+	};
 	return;
 };
 

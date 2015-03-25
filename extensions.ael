@@ -6,6 +6,7 @@ context default {
 	s => {
 		&MACRO-dialstatus_sainte(CONGESTION);
 	};
+
 	_. => {
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CUT(CHANNEL,-,1)},${EXTEN},Context:${CONTEXT} | Chamada via Alias [${EXTEN}]);
 		Set(HASH(DB)=${ODBC_ALIAS_RAMAL(${EXTEN})});
@@ -122,12 +123,6 @@ context seleciona_destino {
 
 includes {
 	estacionamento;
-	};
-
-	_111111 => {
-		Dial(Gtalk/asterisk/andrepr@gmail.com);
-		Dial(Gtalk/asterisk/+5516992340876@voice.google.com);
-		JABBERSend(asterisk,andrepr@gmail.com,This is a test Message);
 	};
 };
 
@@ -258,6 +253,7 @@ context permissao_rotadestino {
 			}else{
 				&MACRO-whitelist_usuario();
 			};
+			Set(HASH(DB_PERMISSAODESTINO)=${ODBC_TIPO_CHAMADA(${id_destino})});
 		};
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Permissão de discagem liberada);
 		Set(GROUP(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})=${HASH(DB_RAMALVIRTUAL,ramal_virtual)});
@@ -561,7 +557,10 @@ context macro-atendeu {
 			Set(MASTER_CHANNEL(tempo)=0);
 		};
 
-		&MACRO-seleciona_ramalvirtual(${CUT(CHANNEL,-,1)});
+//		if ( ${CRM_tipo} = 1 ){
+//			Set(CRM_agente_atende=${CURL(8.8.8.8:4000/?ddd=${numero_destino:-3}&phone=${numero_destino:3}&agent=${agente}&callid=${arquivo_gravacao})});
+//			Noop(${CRM_agente_atende});
+//		};
 	};
 };
 
@@ -754,7 +753,8 @@ context queue_local {
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CALLERID(num)},${EXTEN},Context:${CONTEXT} | Chamada entrante | [origem=${CALLERID(num)}][destino=${EXTEN}]);
 		Set(__numero_destino=${EXTEN});
 		Set(__TEMPO_DIAL=${HASH(DB_PARAMETROS,tempo_chamada_externa)});
-		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CUT(CHANNEL,-,1)},${EXTEN},Context:${CONTEXT} | Chamada via interligação);&MACRO-seleciona_ramalfisico(${EXTEN});
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CUT(CHANNEL,-,1)},${EXTEN},Context:${CONTEXT} | Chamada via interligação);
+		&MACRO-seleciona_ramalfisico(${EXTEN});
 		if ( ${ODBCROWS} > 0 ){
 			Set(__TEMPO_DIAL=${HASH(DB_PARAMETROS,tempo_chamada_interna)});
 			goto permissao_ramaldestino|${EXTEN}|1;
@@ -960,3 +960,73 @@ context rechamada {
 		Hangup();
 	};
 };
+
+context crm {
+
+	*99 => {
+		Answer();
+		Read(AGENT_USERID,agent-user);
+		VMAuthenticate(${AGENT_USERID}@crm);
+		AddQueueMember(Trabalhador,Local/${AGENT_USERID}@crm,,,,${CUT(CHANNEL,-,1)});
+		Set(ODBC_ATUALIZA_AGENTE(${AGENT_USERID},${CUT(CHANNEL,-,1)})=insert);
+		Playback(agent-loginok);
+		&MACRO-dialstatus_sainte(BUSY);
+
+//MULTIPLAS FILAS
+//		Set(HASH(DB)=${ODBC_CHECK_AGENTE_FILA(${CUT(CHANNEL,-,1)})});
+//		if ( ${ODBCROWS} > 0 ){
+//			for (x=0; ${x} < ${ODBCROWS}; x=${x}+1){
+//				Set(HASH(row)=${ODBC_FETCH(${DB})});
+//				AddQueueMember(${HASH(row,queue_name)},Local/${AGENT_USERID}@agentes,,,,${CUT(CHANNEL,-,1)});
+//			};
+//		};
+//		AddQueueMember(${HASH(row,queue_name)},Local/${AGENT_USERID}@agentes,,,,${CUT(CHANNEL,-,1)});
+//		Playback(agent-loginok);
+//		&MACRO-dialstatus_sainte(BUSY);
+	};
+
+	*00 => {
+		Answer();
+		Read(AGENT_USERID,agent-user);
+		VMAuthenticate(${AGENT_USERID}@crm);
+		RemoveQueueMember(Trabalhador,${CUT(CHANNEL,-,1)});
+		Set(ODBC_ATUALIZA_AGENTE(${AGENT_USERID},)=insert);
+		Playback(agent-loggedoff);
+		&MACRO-dialstatus_sainte(BUSY);
+	};
+
+	_.=> {
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},PABX-CRM,${EXTEN},Context:${CONTEXT} | Inicio da chamada via CRM);
+		Set(HASH(DB)=${ODBC_CHECK_AGENTE_VOICEMAIL(${EXTEN})});
+		if ( ${ODBCROWS} = 0 ){
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},PABX-CRM,${EXTEN},Context:${CONTEXT} | Agente [${EXTEN}] não encontrado);
+			&MACRO-dialstatus_sainte(BUSY);
+		};
+		&MACRO-seleciona_ramalvirtual(${HASH(DB,ramal_fisico)});
+		if ( ${ODBCROWS} = 0 ){
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},PABX-CRM,${EXTEN},Context:${CONTEXT} | Ramal Virtual não encontrado);
+			&MACRO-dialstatus_sainte(BUSY);
+		};
+		Set(HASH(DB)=${ODBC_PERMISSAO_ORIGEM(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})});
+		if ( ${GROUP_COUNT(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})} >= ${HASH(DB,chamadas_simultaneas)} ){
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},PABX-CRM,${EXTEN},Context:${CONTEXT} | Chamada interrompida. Ramal ${HASH(DB_RAMALVIRTUAL,ramal_virtual)} Ocupado);
+			&MACRO-dialstatus_sainte(BUSY);
+		};
+		Set(__numero_origem=${HASH(DB_RAMALVIRTUAL,ramal_virtual)});
+		Set(__nome_origem=${EXTEN});
+		Set(__departamento_origem=${HASH(DB_RAMALVIRTUAL,departamento)});
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Iniciando da chamada | [ramal=${HASH(DB_RAMALVIRTUAL,ramal_virtual)}]);
+		Set(HASH(DB_PERMISSAOORIGEM)=${ODBC_PERMISSAO_ORIGEM(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})});
+		Set(HASH(DB_PERMISSAOAPLICACAO)=${ODBC_PERMISSAO_APLICACAO(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})});
+		Set(CALLERID(num)=PABX-CRM);
+		Set(CALLERID(name)=PABX-CRM);
+		Set(CALLERID(all)="PABX-CRM"<PABX-CRM>);
+		Set(__callid=${callid});
+		Set(__numero_discado=${destino});
+		Set(__numero_destino=${destino});
+		Dial(${HASH(DB_RAMALVIRTUAL,tecnologia)}/${HASH(DB_RAMALVIRTUAL,ramal_fisico)},30,TtrM(atendeu));
+		Hangup();
+	};
+};
+
+
