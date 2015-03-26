@@ -511,6 +511,7 @@ macro MACRO-entrada(){
 };
 
 macro MACRO-entrada_interligacao(){
+	Set(CHANNEL(language)=pt_BR);
 	Set(__id_destino=-1);
 	Set(__gravacao=0);
 	Set(__TRANSFER_CONTEXT=transferencia);
