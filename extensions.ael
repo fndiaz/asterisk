@@ -430,7 +430,6 @@ context disca {
 // DIAL (SIP/IAX2/DAHDI), FAX, QUEUE, MEETME
 	_X. => {
 		Set(__DYNAMIC_FEATURES=blindxfer#atxfer#disconnect#nway-start#gravacao);
-		Set(CHANNEL(language)=pt_BR);
 		Set(dispositivo=${CUT(dial_string,/,1)});
 		&MACRO-disca(${CUT(dial_string,/,1)});
 		Exec(${dial_string});
@@ -966,36 +965,56 @@ context rechamada {
 };
 
 context crm {
-
 	*99 => {
 		Answer();
 		Read(AGENT_USERID,agent-user);
 		VMAuthenticate(${AGENT_USERID}@crm);
-		AddQueueMember(Trabalhador,Local/${AGENT_USERID}@crm,,,,${CUT(CHANNEL,-,1)});
-		Set(ODBC_ATUALIZA_AGENTE(${AGENT_USERID},${CUT(CHANNEL,-,1)})=insert);
-		Playback(agent-loginok);
+		Set(DB=${ODBC_CHECK_AGENTE_FILA(${CUT(CHANNEL,-,1)})});
+		if ( ${ODBCROWS} = 0 ){
+			Set(ODBC_ATUALIZA_AGENTE(${AGENT_USERID},${CUT(CHANNEL,-,1)})=insert);
+			Set(DB=${ODBC_CHECK_AGENTE_FILA(${CUT(CHANNEL,-,1)})});
+			if ( ${ODBCROWS} > 0 ){
+				for (x=0; ${x} < ${ODBCROWS}; x=${x}+1){
+					Set(HASH(row)=${ODBC_FETCH(${DB})});
+					AddQueueMember(${HASH(row,name)},Local/${AGENT_USERID}@crm,,,,${CUT(CHANNEL,-,1)});
+					Set(DB(${AGENT_USERID}/${HASH(row,name)})=CRM);
+					AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Agente logando na fila ${HASH(row,name)} | [Agente=${AGENT_USERID}]);
+				};
+			}else{
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Agente não cadastrado em nenhuma fila | [Agente=${AGENT_USERID}]);
+			};
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Agente logado com sucesso | [Agente=${AGENT_USERID}]);
+			Playback(agent-loginok);
+		}else{
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Agente já logado | [Agente=${AGENT_USERID}]);
+		};
 		&MACRO-dialstatus_sainte(BUSY);
-
-//MULTIPLAS FILAS
-//		Set(HASH(DB)=${ODBC_CHECK_AGENTE_FILA(${CUT(CHANNEL,-,1)})});
-//		if ( ${ODBCROWS} > 0 ){
-//			for (x=0; ${x} < ${ODBCROWS}; x=${x}+1){
-//				Set(HASH(row)=${ODBC_FETCH(${DB})});
-//				AddQueueMember(${HASH(row,queue_name)},Local/${AGENT_USERID}@agentes,,,,${CUT(CHANNEL,-,1)});
-//			};
-//		};
-//		AddQueueMember(${HASH(row,queue_name)},Local/${AGENT_USERID}@agentes,,,,${CUT(CHANNEL,-,1)});
-//		Playback(agent-loginok);
-//		&MACRO-dialstatus_sainte(BUSY);
 	};
 
 	*00 => {
 		Answer();
 		Read(AGENT_USERID,agent-user);
 		VMAuthenticate(${AGENT_USERID}@crm);
-		RemoveQueueMember(Trabalhador,${CUT(CHANNEL,-,1)});
-		Set(ODBC_ATUALIZA_AGENTE(${AGENT_USERID},)=insert);
-		Playback(agent-loggedoff);
+		Set(DB=${ODBC_LIST_QUEUE()});
+		if ( ${ODBCROWS} > 0 ){
+			for (x=0; ${x} < ${ODBCROWS}; x=${x}+1){
+				Set(HASH(row)=${ODBC_FETCH(${DB})});
+				if ( ${DB_EXISTS(${AGENT_USERID}/${HASH(row,name)})} = 1 ){
+					RemoveQueueMember(${HASH(row,name)},${CUT(CHANNEL,-,1)});
+					Set(ODBC_ATUALIZA_AGENTE(${AGENT_USERID},)=insert);
+					DB_DELETE(${AGENT_USERID}/${HASH(row,name)});
+					AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Deslogando agente da fila ${HASH(row,name)} | [Agente=${AGENT_USERID}]);
+				};
+			};
+			Set(DB=${ODBC_CHECK_AGENTE_FILA(${CUT(CHANNEL,-,1)})});
+			if ( ${ODBCROWS} = 0 ){
+				Playback(agent-loggedoff);
+			}else{
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Agente não logado | [Agente=${AGENT_USERID}]);
+			};
+		}else{
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Não existe fila cadastrada | [Agente=${AGENT_USERID}]);
+		};
 		&MACRO-dialstatus_sainte(BUSY);
 	};
 
@@ -1019,9 +1038,9 @@ context crm {
 		Set(__numero_origem=${HASH(DB_RAMALVIRTUAL,ramal_virtual)});
 		Set(__nome_origem=${EXTEN});
 		Set(__departamento_origem=${HASH(DB_RAMALVIRTUAL,departamento)});
-		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Iniciando da chamada | [ramal=${HASH(DB_RAMALVIRTUAL,ramal_virtual)}]);
 		Set(HASH(DB_PERMISSAOORIGEM)=${ODBC_PERMISSAO_ORIGEM(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})});
 		Set(HASH(DB_PERMISSAOAPLICACAO)=${ODBC_PERMISSAO_APLICACAO(${HASH(DB_RAMALVIRTUAL,ramal_virtual)})});
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Iniciando da chamada | [ramal=${HASH(DB_RAMALVIRTUAL,ramal_virtual)}][Fisico=${HASH(DB_RAMALVIRTUAL,tecnologia)}/${HASH(DB_RAMALVIRTUAL,ramal_fisico)}]);
 		Set(CALLERID(num)=PABX-CRM);
 		Set(CALLERID(name)=PABX-CRM);
 		Set(CALLERID(all)="PABX-CRM"<PABX-CRM>);
@@ -1032,5 +1051,4 @@ context crm {
 		Hangup();
 	};
 };
-
 
