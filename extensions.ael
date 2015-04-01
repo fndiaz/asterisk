@@ -566,7 +566,7 @@ context macro-atendeu {
 
 //		if ( ${CRM_tipo} = 1 ){
 			Set(CURLOPT(httptimeout)=1);
-//			Set(CRM_agente_atende=${CURL(http://552b423d.ngrok.com:4000/?ddd=016&phone=992340876&agent=agente01&callid=${arquivo_gravacao})});
+//			Set(CRM_agente_atende=${CURL(http://56ad6bf3.ngrok.com/?ddd=016&phone=992340876&agent=agente01&callid=${arquivo_gravacao})});
 			Noop(${CRM_agente_atende});
 //		};
 	};
@@ -730,7 +730,7 @@ frompstn:
 
 context pos_interligacao {
 	_X. => {
-		Set(__numero_discado=${EXTEN});
+//		Set(__numero_discado=${EXTEN});
 		Set(__numero_destino=${EXTEN});
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Checando rota | [id_destino=${id_destino}][rota=${EXTEN:0:1}]);
 
