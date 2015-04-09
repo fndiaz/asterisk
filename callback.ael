@@ -1,7 +1,6 @@
 	_CALLBACK => {
 		Ringing();
 		Wait();
-		&MACRO-entrada();
 		Set(HASH(DB)=${ODBC_CALLBACK(${CALLERID(num)})});
 		if ( ${ODBCROWS} = 0 ){
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CALLERID(num)},${EXTEN},Context:${CONTEXT} | Origem nao cadastrado na tabela CallBack | [origem=${CALLERID(num)}]);
