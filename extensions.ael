@@ -644,7 +644,7 @@ transferencia:
 
 context from-pstn {
 #include "/aldeia/etc/asterisk/confs/ext_extras.ael";
-//#include "/etc/asterisk/callback.ael";
+#include "/etc/asterisk/callback.ael";
 
 	s => {
 		Set(HASH(DB_TRONCO)=${ODBC_TRONCO_ATENDEU(${CUT(CHANNEL,-,1)})});
@@ -661,10 +661,10 @@ context from-pstn {
 		&MACRO-blacklist_entrada();
 		Set(__numero_destino=${HASH(DB_TRONCO,ramal_principal)});
 
-//		if ( ${HASH(DB_PARAMETROS,callback)} = ${EXTEN} ){
-//			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CALLERID(num)},${EXTEN},Context:${CONTEXT} | Chamada no numero CallBack | [origem=${CALLERID(num)}][destino=${EXTEN}]);
-//			goto CALLBACK|1;
-//		};
+		if ( ${HASH(DB_PARAMETROS,callback)} = ${EXTEN} ){
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CALLERID(num)},${EXTEN},Context:${CONTEXT} | Chamada no numero CallBack | [origem=${CALLERID(num)}][destino=${EXTEN}]);
+			goto CALLBACK|1;
+		};
 
 		Set(HASH(DB_DDR)=${ODBC_DDR(${EXTEN:-4})});
 		if ( ${ODBCROWS} > 0 ){
@@ -723,13 +723,13 @@ retorno_ura_0:
 	};
 };
 
-//context callback {
-//	_X. => {
-//		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Iniciando o CallBack | [origem=${numero_origem}][destino=${EXTEN}]);
-//		Set(id_empresa=1);
-//		goto interligacao|${EXTEN}|frompstn;
-//	};
-//};
+context callback {
+	_X. => {
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Iniciando o CallBack | [origem=${numero_origem}][destino=${EXTEN}]);
+		Set(id_empresa=1);
+		goto interligacao|${EXTEN}|frompstn;
+	};
+};
 
 context interligacao {
 	_. => {
