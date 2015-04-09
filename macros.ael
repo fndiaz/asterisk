@@ -600,7 +600,7 @@ macro macro-conferencia(){
 
 macro MACRO-pin_temporario(){
 	Set(tempo=${MATH(${HASH(DB_PARAMETROS,pin_temporario)}*60,i)});
-	Set(tempo=${MATH(${STRFTIME(${EPOCH},,%s)}-${tempo})},i);
+	Set(tempo=${MATH(${STRFTIME(${EPOCH},,%s)}-${tempo},i)});
 	Noop(${STRFTIME(${EPOCH},,%s)}-${tempo});
 	Set(HASH(DB)=${ODBC_PIN_TEMPORARIO(${CUT(CHANNEL,-,1)},${CUT(tempo,.,1)})});
 	if ( ${ODBCROWS} > 0 ){

@@ -17,7 +17,7 @@
 			system(echo "WaitTime: 20" >> /var/spool/asterisk/tmp/${call}.call);
 			system(echo "Set: callback=1" >> /var/spool/asterisk/tmp/${call}.call);
 			Set(timestamp=${MATH(${STRFTIME(${EPOCH},,%s)}+10,i)});
-			TrySystem(touch -t ${timestamp} /var/spool/asterisk/tmp/${call}.call);
+			TrySystem(touch -t ${STRFTIME(${timestamp},,%y%m%d%H%M.%S)} /var/spool/asterisk/tmp/${call}.call);
 			TrySystem(mv /var/spool/asterisk/tmp/${call}.call /var/spool/asterisk/outgoing);
 			Progress();
 			Playtones(busy);
