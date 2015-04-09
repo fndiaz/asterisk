@@ -32,6 +32,5 @@
 		Ringing();
 		wait(3);
 		&MACRO-entrada();
-		goto from-pstn|${numero_discado}|1;
+		goto from-pstn|${HASH(DB_TRONCO,chave)}|1;
 	};
-
