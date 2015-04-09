@@ -1,0 +1,38 @@
+	_CALLBACK => {
+		Ringing();
+		Wait();
+		&MACRO-entrada();
+		Set(HASH(DB)=${ODBC_CALLBACK(${CALLERID(num)})});
+		if ( ${ODBCROWS} = 0 ){
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CALLERID(num)},${EXTEN},Context:${CONTEXT} | Origem nao cadastrado na tabela CallBack | [origem=${CALLERID(num)}]);
+			goto from-pstn|${numero_discado}|1;
+		}else{
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CALLERID(num)},${EXTEN},Context:${CONTEXT} | Gerando o CallFile para o CallBack);
+			Set(call=${UNIQUEID});
+			system(echo "Channel: Local/${CALLERID(num)}@callback" > /var/spool/asterisk/tmp/${call}.call);
+			system(echo "Context: from-pstn" >> /var/spool/asterisk/tmp/${call}.call);
+			system(echo "Extension: ENTRADA" >> /var/spool/asterisk/tmp/${call}.call);
+			system(echo "Callerid: CALLBACK" >> /var/spool/asterisk/tmp/${call}.call);
+			system(echo "MaxRetries: 5" >> /var/spool/asterisk/tmp/${call}.call);
+			system(echo "RetryTime: 10" >> /var/spool/asterisk/tmp/${call}.call);
+			system(echo "WaitTime: 20" >> /var/spool/asterisk/tmp/${call}.call);
+			system(echo "Set: callback=1" >> /var/spool/asterisk/tmp/${call}.call);
+			Set(timestamp=${MATH(${STRFTIME(${EPOCH},,%s)}+10,i)});
+			TrySystem(touch -d ${timestamp} /var/spool/asterisk/tmp/${call}.call);
+			TrySystem(mv /var/spool/asterisk/tmp/${call}.call /var/spool/asterisk/outgoing);
+			Progress();
+			Playtones(busy);
+			Wait(7);
+			StopPlaytones();
+			Hangup();
+		};
+	};
+
+	ENTRADA => {
+		Answer();
+		Ringing();
+		wait(3);
+		&MACRO-entrada();
+		goto from-pstn|${numero_discado}|1;
+	};
+

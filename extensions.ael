@@ -564,11 +564,18 @@ context macro-atendeu {
 			Set(MASTER_CHANNEL(tempo)=0);
 		};
 
-//		if ( ${CRM_tipo} = 1 ){
+		if ( ${CRM_tipo} = 1 ){
+			if ( "${ts}" = "" ){
+				Set(HASH(DB)=${ODBC_CHECK_FISICO_VOICEMAIL(${EXTEN})});
+				if ( ${ODBCROWS} > 0 ){
+					Set(agente=${HASH(DB,pager)});
+				}else{
+					Set(agente=NAO_IDENTIFICADO);
+				};
+			};
 			Set(CURLOPT(httptimeout)=1);
-//			Set(CRM_agente_atende=${CURL(http://56ad6bf3.ngrok.com/?ddd=016&phone=992340876&agent=agente01&callid=${arquivo_gravacao})});
-			Noop(${CRM_agente_atende});
-//		};
+			Set(CRM_agente_atende=${CURL(http://56ad6bf3.ngrok.com/?ddd=${numero_destino}&phone=${numero_destino}&agent=${CRM_agente}&callid=${arquivo_gravacao}&id_event=${CRM_id_event})});
+		};
 	};
 };
 
@@ -631,12 +638,13 @@ transferencia:
 	};
 };
 
-context callback {
-#include "/aldeia/etc/asterisk/confs/ext_extras.ael";
-};
+//context callback { EXCLUIR
+//#include "/aldeia/etc/asterisk/confs/ext_extras.ael"; EXCLUIR
+//}; EXCLUIR
 
 context from-pstn {
 #include "/aldeia/etc/asterisk/confs/ext_extras.ael";
+//#include "/etc/asterisk/callback.ael";
 
 	s => {
 		Set(HASH(DB_TRONCO)=${ODBC_TRONCO_ATENDEU(${CUT(CHANNEL,-,1)})});
@@ -652,6 +660,12 @@ context from-pstn {
 		&MACRO-entrada();
 		&MACRO-blacklist_entrada();
 		Set(__numero_destino=${HASH(DB_TRONCO,ramal_principal)});
+
+//		if ( ${HASH(DB_PARAMETROS,callback)} = ${EXTEN} ){
+//			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CALLERID(num)},${EXTEN},Context:${CONTEXT} | Chamada no numero CallBack | [origem=${CALLERID(num)}][destino=${EXTEN}]);
+//			goto CALLBACK|1;
+//		};
+
 		Set(HASH(DB_DDR)=${ODBC_DDR(${EXTEN:-4})});
 		if ( ${ODBCROWS} > 0 ){
 			Set(__numero_destino=${HASH(DB_DDR,ramal_virtual)});
@@ -709,6 +723,14 @@ retorno_ura_0:
 	};
 };
 
+//context callback {
+//	_X. => {
+//		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Iniciando o CallBack | [origem=${numero_origem}][destino=${EXTEN}]);
+//		Set(id_empresa=1);
+//		goto interligacao|${EXTEN}|frompstn;
+//	};
+//};
+
 context interligacao {
 	_. => {
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${CALLERID(num)},${EXTEN},Context:${CONTEXT} | Chamada entrante | [origem=${CALLERID(num)}][destino=${EXTEN}]);
@@ -730,7 +752,7 @@ frompstn:
 
 context pos_interligacao {
 	_X. => {
-//		Set(__numero_discado=${EXTEN});
+//		Set(__numero_discado=${EXTEN}); 01/04/2015
 		Set(__numero_destino=${EXTEN});
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Checando rota | [id_destino=${id_destino}][rota=${EXTEN:0:1}]);
 
@@ -999,6 +1021,12 @@ context crm {
 		Set(__callid=${callid});
 		Set(__numero_discado=${destino});
 		Set(__numero_destino=${destino});
+		if ( ${ts} > 0 ){
+			Set(__id_event=${id_event});
+			Set(__CRM_tipo=1);
+			Set(__CRM_agente=${EXTEN});
+			Set(__ts=${ts});
+		};
 		Dial(${HASH(DB_RAMALVIRTUAL,tecnologia)}/${HASH(DB_RAMALVIRTUAL,ramal_fisico)},30,TtrM(atendeu));
 		Hangup();
 	};
