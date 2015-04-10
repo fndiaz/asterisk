@@ -168,13 +168,13 @@ macro MACRO-consulta_portabilidade(){
 			Set(ODBC_PORTABILIDADE_INSERT(${STRFTIME(${EPOCH},,%F %T)},${numero_destino},${operadora},${CDR(linkedid)},0)=insert);
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | [operadora=${operadora}] | Consulta local);
 		}else{
-			Set(CURLOPT(httptimeout)=2);
+			Set(CURLOPT(httptimeout)=3);
 			Set(CURLOPT(userpwd)=${HASH(PORTABILIDADE,usuario)}:${HASH(PORTABILIDADE,senha)});
 			Set(operadora=${CURL(${HASH(PORTABILIDADE,endereco)}/?num=${ddd_padrao}${numero_destino:1})});
 			Set(ODBC_PORTABILIDADE_INSERT(${STRFTIME(${EPOCH},,%F %T)},${numero_destino},${operadora},${CDR(linkedid)},1)=insert);
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | [operadora=${operadora}] | Consulta externa);
 		};
-		Set(operadora=${HASH(DB,operadora)}${ddd_padrao});
+		Set(operadora=${operadora}${ddd_padrao});
 	};
 	return;
 };
