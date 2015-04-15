@@ -151,15 +151,18 @@ macro MACRO-chefesecretaria(){
 
 macro MACRO-consulta_portabilidade(){
 	AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Portabilidade habilitada);
+	Set(ddd_padrao=);
 	Set(HASH(DB)=${ODBC_PORTABILIDADE_BLACKLIST(${numero_destino})});
 	if ( ${ODBCROWS} > 0 ){
+		if ( ${LEN(${numero_destino})} <= 10 ){
+			Set(ddd_padrao=${HASH(PORTABILIDADE,ddd_padrao)});
+		};
 		Set(operadora=${HASH(DB,operadora)});
 		Set(ODBC_PORTABILIDADE_INSERT(${STRFTIME(${EPOCH},,%F %T)},${numero_destino},${operadora},${CDR(linkedid)},0)=insert);
 		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | [operadora=${operadora}] | Numero na Blacklist);
 	}else{
 		Set(data=${STRFTIME(${MATH(${STRFTIME(${EPOCH},,%s)}-${MATH(${HASH(PORTABILIDADE,tempo_timeout)}*86400,int)},int)},,%F %T)});
 		Set(HASH(DB)=${ODBC_PORTABILIDADE_CONSULTA(${numero_destino},${data})});
-		Set(ddd_padrao=);
 		if ( ${LEN(${numero_destino})} <= 10 ){
 			Set(ddd_padrao=${HASH(PORTABILIDADE,ddd_padrao)});
 		};

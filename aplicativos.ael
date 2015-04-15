@@ -92,6 +92,7 @@
 	*9988 => {
 		Answer();
 		//Binando o fisico do ramal ${CHANNEL}
+		AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Binando o channel | [Channel: ${CUT(CUT(CHANNEL,-,1),/,2)}]);
 		SayAlpha(${CUT(CUT(CHANNEL,-,1),/,2)});
 		Hangup();
 	};
@@ -124,20 +125,6 @@
 		Hangup();
 	};
 
-//SALA DE CONFERENCIA
-//	_90X => {
-//		Set(CHANNEL(language)=pt_BR);
-//		Set(dev_A=${CUT(CHANNEL,-,1)});
-//		Set(dev_A=${CUT(dev_A,/,2)});
-//		Set(HASH(BD)=${ODBC_CHECKEXISTERAMALVIRTUAL(${dev_A})});
-//		Set(num_A=${HASH(BD,ramal_virtual)});
-//		Set(GROUP(${num_A})=${num_A});
-//		Set(MEETME_RECORDINGFILE=${EXTEN}-${STRFTIME(${EPOCH},,%Y%m%d-%H%M)}-${CALLERID(num)});
-//		MixMonitor(${MEETME_RECORDINGFILE}.wav);
-//		MeetMe(${EXTEN},qr);
-//		Hangup();
-//	};
-
 //ESCUTAR CONVERSAR DE UM RAMAL ESPECIFICO
 	_*9997X. =>{
 		&MACRO-seleciona_ramalvirtual(${CHANNEL});
@@ -150,10 +137,8 @@
 			Set(HASH(DB)=${ODBC_PARAMETROS_GERAIS()});
 			if ( ${ODBCROWS} > 0 ){
 				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Paramentro globais configurados);
-
 				Set(tipo1=${REGEX("${HASH(DB_RAMALVIRTUAL,ramal_virtual)}" ${HASH(DB,spy_ramal_espiao)})});
 				Set(tipo2=${REGEX("${EXTEN:5}" ${HASH(DB,spy_ramal_proibe_monitora)})});
-
 				if ( ${tipo1} = 1 && ${tipo2} = 0 && ${HASH(DB,spy_senha)} = ${senha} ){
 					&MACRO-seleciona_ramalfisico(${EXTEN:5});
 					AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Iniciando o SPY no ramal ${numero_destino:5});
@@ -216,12 +201,9 @@
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Ramal de origem encontrado);
 			Set(HASH(DB)=${ODBC_PARAMETROS_GERAIS()});
 			if ( ${ODBCROWS} > 0 ){
-
 				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Paramentro globais configurados);
-
 				Set(tipo1=${REGEX("${HASH(DB_RAMALVIRTUAL,ramal_virtual)}" ${HASH(DB,spy_ramal_espiao)})});
 				Set(tipo2=${REGEX("${EXTEN:5}" ${HASH(DB,spy_ramal_proibe_monitora)})});
-
 				if ( ${tipo1} = 1 && ${tipo2} = 0 && ${HASH(DB,spy_senha)} = ${senha} ){
 					&MACRO-seleciona_ramalfisico(${EXTEN:5});
 					AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Iniciando o SPY/Sussuro no ramal ${numero_destino:5});
