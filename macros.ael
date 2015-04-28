@@ -431,6 +431,18 @@ macro MACRO-disca(dispositivo){
 		break;
 		case MEETME:
 			Set(HASH(DB)=${ODBC_DISCA(meetme,confno,${HASH(DB_RAMALFISICO,ramal_fisico)})});
+			Set(tipo=${REGEX("r" ${HASH(DB,atributo)})});
+			if ( ${tipo} = 1 ) {
+				Set(data=${STRFTIME(${EPOCH},,%Y%m%d)});
+				Set(AUDIOHOOK_INHERIT(MixMonitor)=no);
+				Set(__arquivo_gravacao=${CDR(linkedid)}-Audio_Conferencia-${numero_destino});
+				Set(__gravacao=1);
+				Set(MEETME_RECORDINGFORMAT=WAV);
+				Set(MEETME_RECORDINGFILE=/var/spool/asterisk/monitor/${data}/${CDR(linkedid)}-Audio_Conferencia-${numero_destino});
+			};
+
+
+
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${EXTEN},Context:${CONTEXT} | Entrando na sala de conferencia | Meetme(${HASH(DB_RAMALFISICO,ramal_fisico)},${HASH(DB,atributo)}));
 			Set(dial_string=MeetMe(${HASH(DB_RAMALFISICO,ramal_fisico)},${HASH(DB,atributo)}));
 		break;
