@@ -35,6 +35,7 @@ macro MACRO-prompt(prompt){
 //11 - Creditos insulficientes
 //12 - Telefone ocupado, tecle um para ativar a rechamada
 //13 - Rechamada ativada
+//14 - PABX, Tronco congestionado
 };
 
 macro MACRO-blacklist_ramal(){
@@ -312,6 +313,9 @@ macro MACRO-dialstatus_sainte(status){
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Tronco indisponivel | [DIALSTATUS=${status}]);
 			Set(dial_status=CONGESTION);
 			Set(status=congestion);
+			if ( ${HASH(DB_PERMISSAODESTINO,msg_congestionado)} = 1 ){
+				&MACRO-prompt(14);
+			};
 		break;
 		case "BUSY":
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Tronco indisponivel | [DIALSTATUS=${DIALSTATUS}]);
