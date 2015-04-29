@@ -1,0 +1,60 @@
+	*99 => {
+		Answer();
+		Read(AGENT_USERID,agent-user);
+		VMAuthenticate(${AGENT_USERID}@crm);
+		Set(DB=${ODBC_CHECK_AGENTE_FILA(${CUT(CHANNEL,-,1)})});
+		if ( ${ODBCROWS} = 0 ){
+			Set(ODBC_ATUALIZA_AGENTE(${AGENT_USERID},${CUT(CHANNEL,-,1)})=insert);
+			Set(DB=${ODBC_CHECK_AGENTE_FILA(${CUT(CHANNEL,-,1)})});
+			if ( ${ODBCROWS} > 0 ){
+				for (x=0; ${x} < ${ODBCROWS}; x=${x}+1){
+					Set(HASH(row)=${ODBC_FETCH(${DB})});
+					AddQueueMember(${HASH(row,name)},Local/${AGENT_USERID}@crm,,,,${CUT(CHANNEL,-,1)});
+					Set(DB(${AGENT_USERID}/${HASH(row,name)})=CRM);
+					AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Agente logando na fila ${HASH(row,name)} | [Agente=${AGENT_USERID}]);
+				};
+			}else{
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Agente não cadastrado em nenhuma fila | [Agente=${AGENT_USERID}]);
+				Playback(an-error-has-occured);
+				&MACRO-dialstatus_sainte(BUSY);
+			};
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Agente logado com sucesso | [Agente=${AGENT_USERID}]);
+			Playback(agent-loginok);
+		}else{
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Agente já logado | [Agente=${AGENT_USERID}]);
+			Playback(an-error-has-occured);
+			&MACRO-dialstatus_sainte(BUSY);
+		};
+		&MACRO-dialstatus_sainte(BUSY);
+	};
+
+	*00 => {
+		Answer();
+		Read(AGENT_USERID,agent-user);
+		VMAuthenticate(${AGENT_USERID}@crm);
+		Set(ODBC_ATUALIZA_AGENTE(${AGENT_USERID},)=insert);
+		Set(DB=${ODBC_LIST_QUEUE()});
+		if ( ${ODBCROWS} > 0 ){
+			for (x=0; ${x} < ${ODBCROWS}; x=${x}+1){
+				Set(HASH(row)=${ODBC_FETCH(${DB})});
+				if ( ${DB_EXISTS(${AGENT_USERID}/${HASH(row,name)})} = 1 ){
+					RemoveQueueMember(${HASH(row,name)},${CUT(CHANNEL,-,1)});
+					Set(DBdeltree(${AGENT_USERID}));
+					AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Deslogando agente da fila ${HASH(row,name)} | [Agente=${AGENT_USERID}]);
+				};
+			};
+			Set(DB=${ODBC_CHECK_AGENTE_FILA(${CUT(CHANNEL,-,1)})});
+			if ( ${ODBCROWS} = 0 ){
+				Playback(agent-loggedoff);
+			}else{
+				AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Agente não logado | [Agente=${AGENT_USERID}]);
+				Playback(an-error-has-occured);
+				&MACRO-dialstatus_sainte(BUSY);
+			};
+		}else{
+			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${AGENT_USERID},${EXTEN},Context:${CONTEXT} | Não existe fila cadastrada | [Agente=${AGENT_USERID}]);
+			Playback(an-error-has-occured);
+			&MACRO-dialstatus_sainte(BUSY);
+		};
+		&MACRO-dialstatus_sainte(BUSY);
+	};
