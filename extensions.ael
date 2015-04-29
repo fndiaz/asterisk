@@ -560,11 +560,12 @@ context macro-atendeu {
 		};
 		if ( "${MASTER_CHANNEL(dispositivo)}" = "QUEUE" ){
 			Set(MASTER_CHANNEL(tempo)=${STRFTIME(${EPOCH},,%s)});
+			Set(CRM_agente=${HASH(DB_RAMALVIRTUAL,nome)});
 		}else{
 			Set(MASTER_CHANNEL(tempo)=0);
 		};
 
-		if ( ${CRM_tipo} = 1 ){
+		if ( ${CRM_tipo} = 1 || ${HASH(DB,crm)} = 1 ){
 			if ( "${ts}" = "" ){
 				Set(HASH(DB)=${ODBC_CHECK_FISICO_VOICEMAIL(${EXTEN})});
 				if ( ${ODBCROWS} > 0 ){
@@ -574,7 +575,7 @@ context macro-atendeu {
 				};
 			};
 			Set(CURLOPT(httptimeout)=1);
-			Set(CRM_agente_atende=${CURL(http://56ad6bf3.ngrok.com/?ddd=${numero_destino}&phone=${numero_destino}&agent=${CRM_agente}&callid=${arquivo_gravacao}&id_event=${CRM_id_event})});
+			Set(CRM_agente_atende=${CURL(http://56ad6bf3.ngrok.com/?ddd=${numero_origem:-3}&phone=${numero_origem}&agent=${CRM_agente}&callid=${arquivo_gravacao}&id_event=${CRM_id_event})});
 		};
 	};
 };
