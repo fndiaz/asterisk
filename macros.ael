@@ -313,7 +313,7 @@ macro MACRO-dialstatus_sainte(status){
 			AGI(rastreamento.php,${CHANNEL},${CDR(linkedid)},${STRFTIME(${EPOCH},,%F %T)},${numero_origem},${numero_destino},Context:${CONTEXT} | Tronco indisponivel | [DIALSTATUS=${status}]);
 			Set(dial_status=CONGESTION);
 			Set(status=congestion);
-			if ( ${HASH(DB_ROTA,msg_congestionado)} = 1 ){
+			if ( ${HASH(ROTA,msg_congestionado)} = 1 ){
 				&MACRO-prompt(14);
 			};
 		break;
